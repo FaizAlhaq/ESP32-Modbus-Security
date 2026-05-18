@@ -1,0 +1,125 @@
+// ============================================================
+//  main.cpp — Entry point firmware ESP32 Gateway Modbus RTU
+//
+//  Alur utama (loop):
+//    Untuk setiap slave (ID 1–5):
+//      1. Catat request → recordRequest()
+//      2. Poll slave via Modbus RTU
+//      3. Periksa keamanan → checkPollResult()
+//      4a. Valid  : tambah ke buffer transaksi
+//      4b. Invalid: kirim anomali ke blockchain langsung
+//    Flush buffer jika waktunya tiba
+//    Delay antar putaran
+// ============================================================
+
+#include <Arduino.h>
+#include <WiFi.h>
+
+#include "config.h"
+#include "modbus_handler.h"
+#include "hash_util.h"
+#include "blockchain_client.h"
+#include "security.h"
+#include "logger.h"
+
+// ------------------------------------------------------------
+// Objek global (satu instance masing-masing)
+// ------------------------------------------------------------
+static ModbusHandler    g_modbus;
+static BlockchainClient g_bc;
+static Security         g_security;
+static Logger           g_logger;
+
+// ------------------------------------------------------------
+// Koneksi WiFi dengan retry sederhana
+// ------------------------------------------------------------
+static void connectWifi() {
+    if (WiFi.status() == WL_CONNECTED) return;
+
+    Serial.printf("[WIFI] Menghubungkan ke %s ...\n", WIFI_SSID);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    uint32_t start = millis();
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - start < WIFI_TIMEOUT_MS) {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.printf("[WIFI] Terhubung. IP: %s\n",
+                      WiFi.localIP().toString().c_str());
+    } else {
+        Serial.println("[WIFI] Gagal terhubung. Blockchain tidak tersedia.");
+    }
+}
+
+// ------------------------------------------------------------
+// Polling satu slave + pemeriksaan keamanan
+// ------------------------------------------------------------
+static void pollAndCheck(uint8_t slaveId) {
+    PollResult    result;
+    SecurityCheck check;
+
+    // Tandai bahwa kita akan mengirim request ke slave ini
+    g_security.recordRequest(slaveId);
+
+    // Poll register debit air (2 register float IEEE-754)
+    bool polled = g_modbus.pollSlave(slaveId, REG_FLOW_RATE, 2, result);
+
+    if (!polled) {
+        // Kegagalan Modbus biasa (offline/CRC) — catat saja, bukan anomali
+        Serial.printf("[MAIN] Slave %u tidak merespons\n", slaveId);
+        return;
+    }
+
+    // Periksa keamanan
+    bool safe = g_security.checkPollResult(result, check);
+
+    if (safe) {
+        // Transaksi valid → masukkan ke buffer log
+        g_logger.addTransaction(result);
+    } else {
+        // Anomali terdeteksi → kirim alert langsung ke blockchain
+        g_logger.reportAnomaly(result, check);
+    }
+}
+
+// ------------------------------------------------------------
+void setup() {
+    Serial.begin(115200);
+    Serial.println("\n[MAIN] ===== ESP32 Modbus Security Gateway =====");
+
+    // Inisialisasi hardware Modbus
+    g_modbus.begin();
+
+    // Koneksi WiFi
+    connectWifi();
+
+    // Inisialisasi modul blockchain, security, logger
+    g_bc.begin();
+    g_security.begin(&g_bc);
+    g_logger.begin(&g_bc);
+
+    Serial.println("[MAIN] Setup selesai. Mulai polling...\n");
+}
+
+// ------------------------------------------------------------
+void loop() {
+    // Reset state request untuk putaran baru
+    g_security.resetRequestState();
+
+    // Poll semua slave secara berurutan
+    for (uint8_t i = 0; i < SLAVE_COUNT; i++) {
+        pollAndCheck(SLAVE_IDS[i]);
+        delay(50); // Jeda singkat antar request agar bus tidak tabrakan
+    }
+
+    // Flush buffer transaksi ke blockchain jika waktunya tiba
+    g_logger.flushIfNeeded();
+
+    // Jeda sebelum putaran berikutnya
+    delay(POLL_INTERVAL_MS);
+}
