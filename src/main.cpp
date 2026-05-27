@@ -88,6 +88,7 @@ static void pollAndCheck(uint8_t slaveId) {
 }
 
 // ------------------------------------------------------------
+#ifndef UNIT_TEST
 void setup() {
     Serial.begin(115200);
     Serial.println("\n[MAIN] ===== ESP32 Modbus Security Gateway =====");
@@ -123,3 +124,4 @@ void loop() {
     // Jeda sebelum putaran berikutnya
     delay(POLL_INTERVAL_MS);
 }
+#endif // UNIT_TEST

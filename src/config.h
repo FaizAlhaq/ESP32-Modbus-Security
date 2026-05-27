@@ -8,19 +8,21 @@
 // ------------------------------------------------------------
 // WiFi
 // ------------------------------------------------------------
-#define WIFI_SSID        "NamaWiFi"       // Nama jaringan WiFi
-#define WIFI_PASSWORD    "PasswordWiFi"   // Password WiFi
+#define WIFI_SSID        "vivobook go 14"       // Nama jaringan WiFi
+#define WIFI_PASSWORD    "halohalohalo"   // Password WiFi
 #define WIFI_TIMEOUT_MS  15000            // Maks waktu koneksi (ms)
 
 // ------------------------------------------------------------
 // Blockchain (Ganache via JSON-RPC HTTP)
 // ------------------------------------------------------------
 // Ganti IP dengan IP PC yang menjalankan Ganache
-#define BLOCKCHAIN_RPC_URL   "http://192.168.0.100:7545"
+#define BLOCKCHAIN_RPC_URL   "http://10.60.47.82:7545"
 // Smart contract address (isi setelah deploy)
-#define CONTRACT_ADDRESS     "0x0000000000000000000000000000000000000000"
+#define CONTRACT_ADDRESS     "0x01F354872A49D65665648FC5fbc95dcF2eb7fd7a"
 // Private key akun Ganache yang digunakan ESP32 (tanpa "0x")
-#define SENDER_PRIVATE_KEY   "ef165163a67f462b7e1a490c25636aa0f3ee04ec471fbf0c029803ca592dc2a4"
+#define SENDER_PRIVATE_KEY   "1ceb81864c83abdc1bb96f2282239e39795c0e934ba0db49a3a5014bb077f95c"
+// Address Ethereum akun di atas — lihat di Ganache tab Accounts
+#define SENDER_ADDRESS       "0x1941Ae81ecfe7907f95C88b2B35aD11b92547751"
 // Gas limit untuk transaksi blockchain
 #define TX_GAS_LIMIT         "0x30000"
 

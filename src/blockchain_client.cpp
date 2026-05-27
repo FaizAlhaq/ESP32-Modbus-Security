@@ -18,9 +18,9 @@
 
 // Keccak-4 byte selector fungsi contract (hitung dari ABI)
 // Ganti dengan selector dari contract yang Anda deploy
-#define SEL_VERIFY_DEVICE    "0xaabbccdd"  // verifyDevice(uint8)
-#define SEL_LOG_TRANSACTION  "0x11223344"  // logTransaction(string,string)
-#define SEL_LOG_ANOMALY      "0x55667788"  // logAnomaly(uint8,uint8,string)
+#define SEL_VERIFY_DEVICE    "0xeca8e63d"  // verifyDevice(uint8)
+#define SEL_LOG_TRANSACTION  "0xd8628357"  // logTransaction(string,string)
+#define SEL_LOG_ANOMALY      "0x98bf92e5"  // logAnomaly(uint8,uint8,string)
 
 // Ukuran buffer payload JSON — cukup untuk satu RPC call
 #define RPC_BUF_SIZE  768
@@ -35,7 +35,7 @@ bool BlockchainClient::verifyDevice(uint8_t slaveId) {
     // Buat parameter: address contract + data (selector + slaveId)
     char params[256];
     snprintf(params, sizeof(params),
-             "[{\"to\":\"%s\",\"data\":\"%s%064u\"},\"latest\"]",
+             "[{\"to\":\"%s\",\"data\":\"%s%064x\"},\"latest\"]",
              CONTRACT_ADDRESS, SEL_VERIFY_DEVICE, slaveId);
 
     char payload[RPC_BUF_SIZE];
@@ -79,7 +79,7 @@ void BlockchainClient::logTransaction(const char* txData, const char* txHash) {
     snprintf(params, sizeof(params),
              "[{\"from\":\"%s\",\"to\":\"%s\","
              "\"data\":\"%s\",\"gas\":\"%s\"}]",
-             "0x0000000000000000000000000000000000000001", // placeholder, ganti dengan akun Ganache
+             SENDER_ADDRESS,
              CONTRACT_ADDRESS,
              SEL_LOG_TRANSACTION,
              TX_GAS_LIMIT);
@@ -98,7 +98,7 @@ void BlockchainClient::logAnomaly(uint8_t slaveId, AnomalyType type, const char*
     snprintf(params, sizeof(params),
              "[{\"from\":\"%s\",\"to\":\"%s\","
              "\"data\":\"%s%02x%02x\",\"gas\":\"%s\"}]",
-             "0x0000000000000000000000000000000000000001", // placeholder
+             SENDER_ADDRESS,
              CONTRACT_ADDRESS,
              SEL_LOG_ANOMALY,
              slaveId, (uint8_t)type,
