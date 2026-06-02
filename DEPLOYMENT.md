@@ -16,7 +16,10 @@ karena Ganache berjalan secara lokal dan CONTRACT_ADDRESS bisa berbeda tiap depl
 ### 2. Deploy Kontrak via Remix IDE
 - Buka https://remix.ethereum.org
 - Buat file baru → copy isi `contracts/ModbusSecurity.sol`
-- Tab **Solidity Compiler** → pilih `0.8.x` → Compile
+- Tab **Solidity Compiler** → pilih `0.8.x`
+  - > ⚠️ **Sebelum compile:** di bagian Advanced Configuration, set **EVM Version ke `paris`**
+    > (Ganache tidak support opcode `PUSH0` dari Shanghai ke atas)
+  - Klik **Compile**
 - Tab **Deploy & Run**:
   - Environment: **Custom - External Http Provider**
   - URL: `http://127.0.0.1:7545`
@@ -48,14 +51,26 @@ Edit `src/config.h`:
 ```
 
 ### 5. Build & Flash
-```bash
-pio run -e esp32dev --target upload
+
+> **Tip:** Buka terminal VS Code dengan shortcut **Esc + `** (backtick)
+
+Gunakan path PlatformIO lengkap agar tidak bergantung pada PATH sistem:
+```powershell
+%USERPROFILE%\.platformio\penv\Scripts\pio run -e esp32dev --target upload
 ```
 
 ### 6. Jalankan Unit Test
-```bash
-pio test -e esp32dev
+```powershell
+%USERPROFILE%\.platformio\penv\Scripts\pio test -e esp32dev
 ```
+
+### 7. Verifikasi Koneksi via Serial Monitor
+
+Setelah flash, pantau output ESP32 untuk memastikan koneksi blockchain berhasil:
+```powershell
+%USERPROFILE%\.platformio\penv\Scripts\pio device monitor -e esp32dev
+```
+Cari log seperti `[Blockchain] verifyDevice OK` atau `[Blockchain] Connected`. Jika muncul `Connection refused`, periksa IP Ganache dan pastikan firewall tidak memblokir port 7545.
 
 ---
 

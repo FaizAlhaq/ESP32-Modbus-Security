@@ -8,21 +8,21 @@
 // ------------------------------------------------------------
 // WiFi
 // ------------------------------------------------------------
-#define WIFI_SSID        "vivobook go 14"       // Nama jaringan WiFi
-#define WIFI_PASSWORD    "halohalohalo"   // Password WiFi
-#define WIFI_TIMEOUT_MS  15000            // Maks waktu koneksi (ms)
+#define WIFI_SSID        "YOUR_WIFI_SSID"     // ← ganti dengan nama WiFi Anda
+#define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD" // ← ganti dengan password WiFi Anda
+#define WIFI_TIMEOUT_MS  15000                // Maks waktu koneksi (ms)
 
 // ------------------------------------------------------------
 // Blockchain (Ganache via JSON-RPC HTTP)
 // ------------------------------------------------------------
-// Ganti IP dengan IP PC yang menjalankan Ganache
-#define BLOCKCHAIN_RPC_URL   "http://10.60.47.82:7545"
-// Smart contract address (isi setelah deploy)
-#define CONTRACT_ADDRESS     "0x01F354872A49D65665648FC5fbc95dcF2eb7fd7a"
-// Private key akun Ganache yang digunakan ESP32 (tanpa "0x")
-#define SENDER_PRIVATE_KEY   "1ceb81864c83abdc1bb96f2282239e39795c0e934ba0db49a3a5014bb077f95c"
-// Address Ethereum akun di atas — lihat di Ganache tab Accounts
-#define SENDER_ADDRESS       "0x1941Ae81ecfe7907f95C88b2B35aD11b92547751"
+// Ganti IP dengan hasil `ipconfig` (IPv4) pada PC yang menjalankan Ganache
+#define BLOCKCHAIN_RPC_URL   "http://<IP_PC>:7545"        // ← ganti IP
+// Smart contract address — didapat dari Remix setelah deploy (EVM: Paris)
+#define CONTRACT_ADDRESS     "0x<CONTRACT_ADDRESS>"        // ← ganti setelah deploy
+// Private key akun Ganache baris pertama — lihat ikon kunci di tab Accounts (tanpa "0x")
+#define SENDER_PRIVATE_KEY   "<GANACHE_PRIVATE_KEY>"       // ← ganti dari Ganache
+// Address Ethereum akun baris pertama Ganache
+#define SENDER_ADDRESS       "0x<GANACHE_ADDRESS>"         // ← ganti dari Ganache
 // Gas limit untuk transaksi blockchain
 #define TX_GAS_LIMIT         "0x30000"
 

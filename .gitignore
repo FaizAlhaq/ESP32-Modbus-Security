@@ -1,6 +1,9 @@
 # PlatformIO build artifacts
 .pio/
 
+# Solidity compiled artifacts (auto-generated dari ModbusSecurity.sol)
+contracts/artifacts/
+
 # Sensitive config
 include/secrets.h
 src/config_secret.h
