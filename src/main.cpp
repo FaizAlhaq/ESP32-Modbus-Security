@@ -66,8 +66,8 @@ static void pollAndCheck(uint8_t slaveId) {
     // Tandai bahwa kita akan mengirim request ke slave ini
     g_security.recordRequest(slaveId);
 
-    // Poll register debit air (2 register float IEEE-754)
-    bool polled = g_modbus.pollSlave(slaveId, REG_FLOW_RATE, 2, result);
+    // Poll 4 register AGNIKA: forward pulse (0x0000-0x0001) + backward pulse (0x0002-0x0003)
+    bool polled = g_modbus.pollSlave(slaveId, REG_FORWARD_PULSE, 4, result);
 
     if (!polled) {
         // Kegagalan Modbus biasa (offline/CRC) — catat saja, bukan anomali

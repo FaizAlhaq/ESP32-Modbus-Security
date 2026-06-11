@@ -39,10 +39,14 @@
 #define SLAVE_COUNT          5
 static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2, 3, 4, 5};
 
-// Register Modbus pada setiap slave
-#define REG_FLOW_RATE        0x0000      // Debit air (L/min, float 2 reg)
-#define REG_TOTAL_VOLUME     0x0002      // Volume total (L, float 2 reg)
-#define REG_VALVE_STATUS     0x0004      // Status katup (0=tutup, 1=buka)
+// Register Modbus pada setiap slave — AGNIKA pulse totalizer
+// Format: uint32, LSW di alamat rendah, MSW di alamat tinggi
+// Contoh: forward pulse = ((reg[0x0001] << 16) | reg[0x0000])
+// 1 pulse = 10 liter. Nilai kumulatif (selalu naik, tidak pernah turun).
+#define REG_FORWARD_PULSE    0x0000      // Forward pulse uint32 (LSW 0x0000, MSW 0x0001)
+#define REG_BACKWARD_PULSE   0x0002      // Backward pulse uint32 (LSW 0x0002, MSW 0x0003)
+// TODO: REG_VALVE_STATUS — belum dikonfirmasi ada di AGNIKA. Jangan poll dulu.
+// #define REG_VALVE_STATUS  0x0004
 
 // Timeout respons slave (ms)
 #define MODBUS_RESPONSE_TIMEOUT_MS  500
@@ -50,9 +54,9 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2, 3, 4, 5};
 // ------------------------------------------------------------
 // Deteksi anomali
 // ------------------------------------------------------------
-// Batas nilai debit (L/min) — di luar ini dianggap anomali
-#define FLOW_RATE_MIN        0.0f
-#define FLOW_RATE_MAX        100.0f
+// Kenaikan forward pulse maks wajar dalam satu interval polling (kalibrasi).
+// Default 1000 pulse = 10.000 liter/polling. Sesuaikan dengan debit maks pipa.
+#define MAX_PULSE_DELTA      1000UL
 
 // Jendela waktu respons yang masih diterima (ms)
 #define RESPONSE_WINDOW_MS   600

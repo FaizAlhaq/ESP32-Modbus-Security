@@ -9,6 +9,9 @@
 void Security::begin(BlockchainClient* bc) {
     _bc = bc;
     memset(_requestSent, false, sizeof(_requestSent));
+    for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
+        _lastForwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
+    }
     Serial.println("[SEC] Security module siap");
 }
 
@@ -98,21 +101,43 @@ bool Security::checkTiming(const PollResult& r, SecurityCheck& c) {
 }
 
 // ------------------------------------------------------------
-// Lapisan 3: nilai register debit dalam batas wajar
+// Lapisan 3: validasi pulse totalizer AGNIKA
+//   - Forward pulse hanya boleh naik (nilai kumulatif)
+//   - Kenaikan per polling tidak boleh melebihi MAX_PULSE_DELTA
 // ------------------------------------------------------------
 bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
-    if (r.reg_addr != REG_FLOW_RATE) return true;
+    if (r.reg_addr != REG_FORWARD_PULSE) return true;
 
-    float flow = ModbusHandler::registersToFloat(r.values[0], r.values[1]);
-    if (flow < FLOW_RATE_MIN || flow > FLOW_RATE_MAX) {
-        c.anomalyValueRange = true;
-        c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
-        snprintf(c.detail, sizeof(c.detail),
-                 "Slave %u debit %.2f L/min di luar batas [%.1f, %.1f]",
-                 r.slave_id, flow, FLOW_RATE_MIN, FLOW_RATE_MAX);
-        Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
-        return false;
+    uint8_t  id  = r.slave_id;
+    uint32_t fwd = ModbusHandler::registersToUint32(r.values[0], r.values[1]);
+
+    if (_lastForwardPulse[id] != UINT32_MAX) {
+        // Anomali: forward pulse turun — totalizer tidak boleh berkurang
+        if (fwd < _lastForwardPulse[id]) {
+            c.anomalyValueRange = true;
+            c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
+            snprintf(c.detail, sizeof(c.detail),
+                     "Slave %u forward pulse turun: %lu -> %lu",
+                     id, (unsigned long)_lastForwardPulse[id], (unsigned long)fwd);
+            Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+            return false;
+        }
+
+        // Anomali: kenaikan melebihi batas kalibrasi
+        if ((fwd - _lastForwardPulse[id]) > MAX_PULSE_DELTA) {
+            c.anomalyValueRange = true;
+            c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
+            snprintf(c.detail, sizeof(c.detail),
+                     "Slave %u delta pulse %lu melebihi batas %lu",
+                     id,
+                     (unsigned long)(fwd - _lastForwardPulse[id]),
+                     (unsigned long)MAX_PULSE_DELTA);
+            Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+            return false;
+        }
     }
+
+    _lastForwardPulse[id] = fwd;
     return true;
 }
 

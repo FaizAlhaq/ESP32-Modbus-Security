@@ -96,3 +96,12 @@ float ModbusHandler::registersToFloat(uint16_t hi, uint16_t lo) {
     memcpy(&val, &raw, sizeof(val));
     return val;
 }
+
+// ------------------------------------------------------------
+// Konversi dua register 16-bit → uint32 — LSW dulu (konvensi AGNIKA)
+// getResponseBuffer(N)   = register alamat rendah = LSW
+// getResponseBuffer(N+1) = register alamat tinggi = MSW
+// ------------------------------------------------------------
+uint32_t ModbusHandler::registersToUint32(uint16_t lo, uint16_t hi) {
+    return ((uint32_t)hi << 16) | lo;
+}

@@ -45,6 +45,10 @@ private:
     // Catat slave mana yang sudah diberi request dalam putaran ini
     bool _requestSent[SLAVE_COUNT + 1]; // indeks = slave_id (1–5)
 
+    // Forward pulse terakhir per slave (indeks = slave_id 1–5)
+    // UINT32_MAX = sentinel "belum ada data pembacaan sebelumnya"
+    uint32_t _lastForwardPulse[SLAVE_COUNT + 1];
+
     bool checkSlaveId(const PollResult& r, SecurityCheck& c);
     bool checkTiming(const PollResult& r, SecurityCheck& c);
     bool checkValueRange(const PollResult& r, SecurityCheck& c);

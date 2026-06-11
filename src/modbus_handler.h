@@ -32,8 +32,12 @@ public:
                    uint8_t  regCount,
                    PollResult& result);
 
-    // Konversi dua register 16-bit menjadi float IEEE-754
+    // Konversi dua register 16-bit menjadi float IEEE-754 (MSW dulu)
     static float registersToFloat(uint16_t hi, uint16_t lo);
+
+    // Konversi dua register 16-bit menjadi uint32 — LSW dulu (konvensi AGNIKA)
+    // Panggil: registersToUint32(values[N], values[N+1])
+    static uint32_t registersToUint32(uint16_t lo, uint16_t hi);
 
 private:
     ModbusMaster _node;
