@@ -39,6 +39,12 @@ public:
     // Reset state request setelah satu putaran penuh
     void resetRequestState();
 
+    // Tandai bahwa slave ini pernah berhasil merespons
+    void markPresent(uint8_t slaveId);
+
+    // True jika slave ini pernah berhasil merespons sebelumnya
+    bool wasPresent(uint8_t slaveId);
+
 private:
     BlockchainClient* _bc;
 
@@ -48,6 +54,9 @@ private:
     // Forward pulse terakhir per slave (indeks = slave_id 1–5)
     // UINT32_MAX = sentinel "belum ada data pembacaan sebelumnya"
     uint32_t _lastForwardPulse[SLAVE_COUNT + 1];
+
+    // Catat slave yang pernah berhasil merespons minimal sekali
+    bool _wasPresent[SLAVE_COUNT + 1]; // indeks = slave_id (1–5)
 
     bool checkSlaveId(const PollResult& r, SecurityCheck& c);
     bool checkTiming(const PollResult& r, SecurityCheck& c);

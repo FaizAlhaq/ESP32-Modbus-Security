@@ -70,10 +70,28 @@ static void pollAndCheck(uint8_t slaveId) {
     bool polled = g_modbus.pollSlave(slaveId, REG_FORWARD_PULSE, 4, result);
 
     if (!polled) {
-        // Kegagalan Modbus biasa (offline/CRC) — catat saja, bukan anomali
-        Serial.printf("[MAIN] Slave %u tidak merespons\n", slaveId);
+        if (g_security.wasPresent(slaveId)) {
+            // Perangkat yang sebelumnya aktif kini tidak merespons — anomali
+            SecurityCheck check;
+            check.passed             = false;
+            check.anomalyRogueDevice = false;
+            check.anomalyNoRequest   = false;
+            check.anomalyTiming      = false;
+            check.anomalyValueRange  = false;
+            check.primaryAnomaly     = ANOMALY_DEVICE_LOST;
+            snprintf(check.detail, sizeof(check.detail),
+                     "Slave %u tidak merespons setelah sebelumnya aktif", slaveId);
+            Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=DEVICE_LOST"
+                          " | detail=%s\n",
+                          (unsigned long)millis(), slaveId, check.detail);
+            g_logger.reportAnomaly(result, check);
+        } else {
+            Serial.printf("[MAIN] Slave %u tidak merespons\n", slaveId);
+        }
         return;
     }
+
+    g_security.markPresent(slaveId); // poll sukses — catat kehadiran slave ini
 
     // Periksa keamanan
     bool safe = g_security.checkPollResult(result, check);

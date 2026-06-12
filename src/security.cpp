@@ -11,6 +11,7 @@ static const char* anomalyName(AnomalyType t) {
         case ANOMALY_ROGUE_SLAVE: return "ROGUE_ID";
         case ANOMALY_TIMING:      return "TIMING";
         case ANOMALY_VALUE_RANGE: return "VALUE_RANGE";
+        case ANOMALY_DEVICE_LOST: return "DEVICE_LOST";
         default:                  return "UNKNOWN";
     }
 }
@@ -19,6 +20,7 @@ static const char* anomalyName(AnomalyType t) {
 void Security::begin(BlockchainClient* bc) {
     _bc = bc;
     memset(_requestSent, false, sizeof(_requestSent));
+    memset(_wasPresent,   false, sizeof(_wasPresent));
     for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
         _lastForwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
     }
@@ -35,6 +37,17 @@ void Security::recordRequest(uint8_t slaveId) {
 // ------------------------------------------------------------
 void Security::resetRequestState() {
     memset(_requestSent, false, sizeof(_requestSent));
+}
+
+// ------------------------------------------------------------
+void Security::markPresent(uint8_t slaveId) {
+    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) _wasPresent[slaveId] = true;
+}
+
+// ------------------------------------------------------------
+bool Security::wasPresent(uint8_t slaveId) {
+    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) return _wasPresent[slaveId];
+    return false;
 }
 
 // ------------------------------------------------------------

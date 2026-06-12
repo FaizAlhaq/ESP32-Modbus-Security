@@ -17,6 +17,7 @@ enum AnomalyType {
     ANOMALY_ROGUE_SLAVE   = 1,  // Slave ID tidak dikenal
     ANOMALY_TIMING        = 2,  // Respons di luar jendela waktu
     ANOMALY_VALUE_RANGE   = 3,  // Nilai register di luar batas
+    ANOMALY_DEVICE_LOST   = 4,  // Perangkat pernah hadir, kini tidak merespons
 };
 
 class BlockchainClient {
