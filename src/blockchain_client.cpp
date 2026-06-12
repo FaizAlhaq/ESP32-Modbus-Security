@@ -107,19 +107,41 @@ void BlockchainClient::logAnomaly(uint8_t slaveId, AnomalyType type, const char*
     char payload[RPC_BUF_SIZE];
     buildRpcPayload("eth_sendTransaction", params, payload, sizeof(payload));
 
-    int code = postJson(payload);
-    Serial.printf("[BC] logAnomaly slave=%u type=%u → HTTP %d | %s\n",
-                  slaveId, type, code, detail);
+    char txHash[68] = "N/A"; // "0x" + 64 hex + null
+    int  code = postJson(payload, txHash, sizeof(txHash));
+    Serial.printf("[BC] anomaly committed @t=%lums | slave=%u | jenis=%u | HTTP %d | hash=%s | %s\n",
+                  (unsigned long)millis(), slaveId, (uint8_t)type, code, txHash, detail);
 }
 
 // ------------------------------------------------------------
-int BlockchainClient::postJson(const char* payload) {
+int BlockchainClient::postJson(const char* payload, char* outTxHash, size_t hashLen) {
     HTTPClient http;
     http.begin(BLOCKCHAIN_RPC_URL);
     http.addHeader("Content-Type", "application/json");
     http.setTimeout(5000); // 5 detik timeout agar tidak blokir lama
 
     int code = http.POST(payload);
+
+    if (outTxHash != nullptr && hashLen > 0) {
+        if (code == 200) {
+            String body = http.getString();
+            JsonDocument doc;
+            if (deserializeJson(doc, body) == DeserializationError::Ok) {
+                const char* result = doc["result"];
+                if (result != nullptr) {
+                    strncpy(outTxHash, result, hashLen - 1);
+                    outTxHash[hashLen - 1] = '\0';
+                } else {
+                    strncpy(outTxHash, "no-result", hashLen);
+                }
+            } else {
+                strncpy(outTxHash, "parse-err", hashLen);
+            }
+        } else {
+            snprintf(outTxHash, hashLen, "http-%d", code);
+        }
+    }
+
     http.end();
     return code;
 }

@@ -38,7 +38,10 @@ public:
 
 private:
     // Kirim POST JSON ke RPC endpoint; return HTTP status code
-    int  postJson(const char* payload);
+    // Jika outTxHash tidak null, isi dengan tx hash dari respons Ganache
+    int  postJson(const char* payload,
+                  char*       outTxHash = nullptr,
+                  size_t      hashLen   = 0);
 
     // Buat JSON-RPC envelope untuk pemanggilan smart contract
     // methodName: nama fungsi ABI, params: string JSON array argumen

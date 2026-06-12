@@ -5,6 +5,16 @@
 #include "security.h"
 #include <string.h>
 
+static const char* anomalyName(AnomalyType t) {
+    switch (t) {
+        case ANOMALY_NO_REQUEST:  return "NO_REQUEST";
+        case ANOMALY_ROGUE_SLAVE: return "ROGUE_ID";
+        case ANOMALY_TIMING:      return "TIMING";
+        case ANOMALY_VALUE_RANGE: return "VALUE_RANGE";
+        default:                  return "UNKNOWN";
+    }
+}
+
 // ------------------------------------------------------------
 void Security::begin(BlockchainClient* bc) {
     _bc = bc;
@@ -67,7 +77,9 @@ bool Security::checkSlaveId(const PollResult& r, SecurityCheck& c) {
         c.anomalyRogueDevice = true;
         c.primaryAnomaly     = ANOMALY_ROGUE_SLAVE;
         snprintf(c.detail, sizeof(c.detail), "Slave ID %u tidak dikenal", id);
-        Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+        Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
         return false;
     }
 
@@ -76,7 +88,9 @@ bool Security::checkSlaveId(const PollResult& r, SecurityCheck& c) {
         c.primaryAnomaly   = ANOMALY_NO_REQUEST;
         snprintf(c.detail, sizeof(c.detail),
                  "Respons dari slave %u tanpa request", id);
-        Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+        Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
         return false;
     }
     return true;
@@ -94,7 +108,9 @@ bool Security::checkTiming(const PollResult& r, SecurityCheck& c) {
                  r.slave_id,
                  (unsigned long)r.response_time_ms,
                  RESPONSE_WINDOW_MS);
-        Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+        Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
         return false;
     }
     return true;
@@ -119,7 +135,9 @@ bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
             snprintf(c.detail, sizeof(c.detail),
                      "Slave %u forward pulse turun: %lu -> %lu",
                      id, (unsigned long)_lastForwardPulse[id], (unsigned long)fwd);
-            Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+            Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
             return false;
         }
 
@@ -132,7 +150,9 @@ bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
                      id,
                      (unsigned long)(fwd - _lastForwardPulse[id]),
                      (unsigned long)MAX_PULSE_DELTA);
-            Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+            Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
             return false;
         }
     }
@@ -154,7 +174,9 @@ bool Security::checkWhitelist(const PollResult& r, SecurityCheck& c) {
         c.primaryAnomaly     = ANOMALY_ROGUE_SLAVE;
         snprintf(c.detail, sizeof(c.detail),
                  "Slave %u tidak ada di whitelist blockchain", r.slave_id);
-        Serial.printf("[SEC] ANOMALI: %s\n", c.detail);
+        Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
         return false;
     }
     return true;

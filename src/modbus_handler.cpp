@@ -76,8 +76,17 @@ bool ModbusHandler::pollSlave(uint8_t  slaveId,
         }
         result.success = true;
 
-        Serial.printf("[MODBUS] Slave %u | Reg 0x%04X | OK | %u ms\n",
-                      slaveId, regAddr, result.response_time_ms);
+        if (regAddr == REG_FORWARD_PULSE && regCount >= 4) {
+            uint32_t fwd = ModbusHandler::registersToUint32(result.values[0], result.values[1]);
+            uint32_t bwd = ModbusHandler::registersToUint32(result.values[2], result.values[3]);
+            int32_t  acc = (int32_t)(fwd - bwd);
+            Serial.printf("[MODBUS] Slave %u | fwd=%lu bwd=%lu acc=%ld | OK | %u ms\n",
+                          slaveId, (unsigned long)fwd, (unsigned long)bwd,
+                          (long)acc, result.response_time_ms);
+        } else {
+            Serial.printf("[MODBUS] Slave %u | Reg 0x%04X | OK | %u ms\n",
+                          slaveId, regAddr, result.response_time_ms);
+        }
     } else {
         Serial.printf("[MODBUS] Slave %u | Reg 0x%04X | ERR 0x%02X | %u ms\n",
                       slaveId, regAddr, status, result.response_time_ms);
