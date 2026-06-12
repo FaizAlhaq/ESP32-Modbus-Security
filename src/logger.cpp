@@ -7,9 +7,10 @@
 
 // ------------------------------------------------------------
 void Logger::begin(BlockchainClient* bc) {
-    _bc          = bc;
-    _count       = 0;
-    _lastFlushMs = 0;
+    _bc             = bc;
+    _count          = 0;
+    _lastFlushMs    = 0;
+    _pendingAnomaly = 0;
     memset(_buffer, 0, sizeof(_buffer));
     Serial.println("[LOG] Logger siap");
 }
@@ -47,14 +48,22 @@ void Logger::addTransaction(const PollResult& result) {
 // ------------------------------------------------------------
 void Logger::reportAnomaly(const PollResult& result,
                             const SecurityCheck& check) {
-    if (_bc == nullptr) {
-        Serial.printf("[LOG] ANOMALI (no BC): slave=%u | %s\n",
+    if (_bc == nullptr || !_bc->isReachable()) {
+        _pendingAnomaly++;
+        Serial.printf("[LOG] ANOMALI lokal [tertunda=%u] @t=%lums: slave=%u | %s\n",
+                      _pendingAnomaly, (unsigned long)millis(),
                       result.slave_id, check.detail);
         return;
     }
 
-    // Kirim anomali langsung — tidak buffered agar tidak tertunda
+    // BC tersedia — kirim langsung
     _bc->logAnomaly(result.slave_id, check.primaryAnomaly, check.detail);
+
+    if (_pendingAnomaly > 0) {
+        Serial.printf("[LOG] PERINGATAN: %u anomali tidak terkirim selama BC down\n",
+                      _pendingAnomaly);
+        _pendingAnomaly = 0;
+    }
 
     Serial.printf("[LOG] ANOMALI dikirim: slave=%u type=%u | %s\n",
                   result.slave_id,
@@ -79,11 +88,18 @@ void Logger::flushNow() {
 
 // ------------------------------------------------------------
 void Logger::flush() {
-    if (_bc == nullptr) {
-        Serial.printf("[LOG] Flush dilewati (BC tidak tersedia), %u entri dibuang\n", _count);
+    if (_bc == nullptr || !_bc->isReachable()) {
+        Serial.printf("[LOG] Flush diabaikan — BC tidak terjangkau. %u tx dibuang, anomali tertunda: %u\n",
+                      _count, _pendingAnomaly);
         _count       = 0;
         _lastFlushMs = millis();
         return;
+    }
+
+    if (_pendingAnomaly > 0) {
+        Serial.printf("[LOG] PERINGATAN: %u anomali tidak terkirim selama BC down\n",
+                      _pendingAnomaly);
+        _pendingAnomaly = 0;
     }
 
     Serial.printf("[LOG] Flush %u transaksi ke blockchain...\n", _count);

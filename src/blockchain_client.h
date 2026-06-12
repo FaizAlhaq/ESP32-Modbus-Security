@@ -36,7 +36,12 @@ public:
     // Kirim alert anomali ke blockchain
     void logAnomaly(uint8_t slaveId, AnomalyType type, const char* detail);
 
+    // True jika node blockchain berhasil dihubungi pada call terakhir
+    bool isReachable() const;
+
 private:
+    bool _reachable;  // Status koneksi terakhir ke node blockchain
+
     // Kirim POST JSON ke RPC endpoint; return HTTP status code
     // Jika outTxHash tidak null, isi dengan tx hash dari respons Ganache
     int  postJson(const char* payload,
@@ -49,4 +54,7 @@ private:
                          const char* params,
                          char*       outBuf,
                          size_t      outBufLen);
+
+    // Update _reachable; cetak pesan hanya saat terjadi transisi naik/turun
+    void updateReachability(bool success);
 };

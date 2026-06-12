@@ -44,6 +44,7 @@ private:
     TxEntry  _buffer[TX_BUFFER_SIZE];
     uint8_t  _count;            // Jumlah entri di buffer saat ini
     uint32_t _lastFlushMs;      // Waktu flush terakhir
+    uint16_t _pendingAnomaly;   // Anomali yang gagal dikirim saat BC down
 
     void flush();
 };

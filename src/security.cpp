@@ -169,6 +169,19 @@ bool Security::checkWhitelist(const PollResult& r, SecurityCheck& c) {
     if (_bc == nullptr) return true;
 
     bool whitelisted = _bc->verifyDevice(r.slave_id);
+
+    if (!_bc->isReachable()) {
+        // Node tidak terjangkau — JANGAN diam-diam loloskan
+        c.anomalyRogueDevice = true;
+        c.primaryAnomaly     = ANOMALY_ROGUE_SLAVE;
+        snprintf(c.detail, sizeof(c.detail),
+                 "Slave %u whitelist TAK TERVERIFIKASI (BC tidak terjangkau)", r.slave_id);
+        Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
+        return false;
+    }
+
     if (!whitelisted) {
         c.anomalyRogueDevice = true;
         c.primaryAnomaly     = ANOMALY_ROGUE_SLAVE;

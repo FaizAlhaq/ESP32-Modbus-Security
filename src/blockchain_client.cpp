@@ -27,7 +27,24 @@
 
 // ------------------------------------------------------------
 void BlockchainClient::begin() {
+    _reachable = true; // Optimis: asumsikan aktif, deteksi dari call pertama
     Serial.println("[BC] BlockchainClient siap, RPC: " BLOCKCHAIN_RPC_URL);
+}
+
+// ------------------------------------------------------------
+bool BlockchainClient::isReachable() const {
+    return _reachable;
+}
+
+// ------------------------------------------------------------
+void BlockchainClient::updateReachability(bool success) {
+    if (success && !_reachable) {
+        _reachable = true;
+        Serial.println("[BC] tersambung kembali");
+    } else if (!success && _reachable) {
+        _reachable = false;
+        Serial.println("[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU");
+    }
 }
 
 // ------------------------------------------------------------
@@ -68,6 +85,7 @@ bool BlockchainClient::verifyDevice(uint8_t slaveId) {
         Serial.printf("[BC] verifyDevice HTTP error: %d\n", code);
     }
 
+    updateReachability(code > 0);
     http.end();
     return verified;
 }
@@ -121,6 +139,7 @@ int BlockchainClient::postJson(const char* payload, char* outTxHash, size_t hash
     http.setTimeout(5000); // 5 detik timeout agar tidak blokir lama
 
     int code = http.POST(payload);
+    updateReachability(code > 0);
 
     if (outTxHash != nullptr && hashLen > 0) {
         if (code == 200) {
