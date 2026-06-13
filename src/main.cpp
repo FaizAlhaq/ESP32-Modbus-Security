@@ -85,10 +85,43 @@ static void pollAndCheck(uint8_t slaveId) {
                           " | detail=%s\n",
                           (unsigned long)millis(), slaveId, check.detail);
             g_logger.reportAnomaly(result, check);
+            g_security.markLost(slaveId); // reset agar reconnect memicu identity check
         } else {
             Serial.printf("[MAIN] Slave %u tidak merespons\n", slaveId);
         }
         return;
+    }
+
+    // Kontak pertama ATAU reconnect setelah DEVICE_LOST → verifikasi identitas
+    if (!g_security.isCurrentlyPresent(slaveId)) {
+        uint8_t uid32[32];
+        if (g_modbus.readUID(slaveId, uid32)) {
+            // Cetak UID 24-hex (12 byte bermakna, byte 20–31)
+            Serial.printf("[SEC] Slave %u UID = 0x", slaveId);
+            for (int i = 20; i < 32; i++) Serial.printf("%02x", uid32[i]);
+            Serial.println();
+
+            if (g_bc.verifyDevice(slaveId, uid32)) {
+                Serial.printf("[SEC] identitas slave %u terverifikasi (UID cocok)\n", slaveId);
+            } else {
+                SecurityCheck idCheck;
+                idCheck.passed             = false;
+                idCheck.anomalyRogueDevice = false;
+                idCheck.anomalyNoRequest   = false;
+                idCheck.anomalyTiming      = false;
+                idCheck.anomalyValueRange  = false;
+                idCheck.primaryAnomaly     = ANOMALY_IDENTITY;
+                snprintf(idCheck.detail, sizeof(idCheck.detail),
+                         "Slave %u UID tidak cocok / belum terdaftar", slaveId);
+                Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=IDENTITY"
+                              " | detail=%s\n",
+                              (unsigned long)millis(), slaveId, idCheck.detail);
+                g_logger.reportAnomaly(result, idCheck);
+            }
+        } else {
+            Serial.printf("[SEC] Slave %u: gagal baca UID, verifikasi identitas dilewati\n",
+                          slaveId);
+        }
     }
 
     g_security.markPresent(slaveId); // poll sukses — catat kehadiran slave ini

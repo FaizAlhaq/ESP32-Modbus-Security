@@ -18,6 +18,7 @@ enum AnomalyType {
     ANOMALY_TIMING        = 2,  // Respons di luar jendela waktu
     ANOMALY_VALUE_RANGE   = 3,  // Nilai register di luar batas
     ANOMALY_DEVICE_LOST   = 4,  // Perangkat pernah hadir, kini tidak merespons
+    ANOMALY_IDENTITY      = 5,  // UID tidak cocok atau belum terdaftar di blockchain
 };
 
 class BlockchainClient {
@@ -25,9 +26,12 @@ public:
     // Inisialisasi (tidak membutuhkan koneksi; WiFi sudah harus aktif)
     void begin();
 
-    // Cek apakah slaveId terdaftar di whitelist blockchain
-    // Return: true jika terdaftar, false jika tidak atau error
+    // Cek whitelist saja (dipanggil tiap poll)
     bool verifyDevice(uint8_t slaveId);
+
+    // Cek whitelist + kecocokan UID (first-contact / reconnect)
+    // uid32: buffer 32 byte hasil readUID() — ABI uint256 big-endian
+    bool verifyDevice(uint8_t slaveId, const uint8_t uid32[32]);
 
     // Kirim satu record transaksi ke blockchain
     // txData: string yang sudah dibentuk di logger

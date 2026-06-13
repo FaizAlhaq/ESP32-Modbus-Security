@@ -114,3 +114,21 @@ float ModbusHandler::registersToFloat(uint16_t hi, uint16_t lo) {
 uint32_t ModbusHandler::registersToUint32(uint16_t lo, uint16_t hi) {
     return ((uint32_t)hi << 16) | lo;
 }
+
+// ------------------------------------------------------------
+// Baca UID AGNIKA dari 6 register mulai REG_UID (0x000D).
+// 6 register × 16-bit = 96-bit UID, disusun big-endian.
+// outUid32: buffer 32 byte → byte 0-19 = 0x00 (padding ABI uint256)
+//                           byte 20-31 = UID (reg[0]=MSW...reg[5]=LSW)
+// ------------------------------------------------------------
+bool ModbusHandler::readUID(uint8_t slaveId, uint8_t outUid32[32]) {
+    PollResult result;
+    if (!pollSlave(slaveId, REG_UID, 6, result)) return false;
+
+    memset(outUid32, 0, 32);
+    for (uint8_t i = 0; i < 6; i++) {
+        outUid32[20 + i * 2]     = (result.values[i] >> 8) & 0xFF; // hi byte
+        outUid32[20 + i * 2 + 1] =  result.values[i]       & 0xFF; // lo byte
+    }
+    return true;
+}

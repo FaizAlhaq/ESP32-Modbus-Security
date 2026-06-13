@@ -45,6 +45,12 @@ public:
     // True jika slave ini pernah berhasil merespons sebelumnya
     bool wasPresent(uint8_t slaveId);
 
+    // Reset status kontak aktif (panggil saat DEVICE_LOST terjadi)
+    void markLost(uint8_t slaveId);
+
+    // True jika slave hadir dalam siklus saat ini (false setelah markLost)
+    bool isCurrentlyPresent(uint8_t slaveId);
+
 private:
     BlockchainClient* _bc;
 
@@ -56,7 +62,10 @@ private:
     uint32_t _lastForwardPulse[SLAVE_COUNT + 1];
 
     // Catat slave yang pernah berhasil merespons minimal sekali
-    bool _wasPresent[SLAVE_COUNT + 1]; // indeks = slave_id (1–5)
+    bool _wasPresent[SLAVE_COUNT + 1];       // indeks = slave_id (1–5)
+
+    // Status kontak aktif: false setelah DEVICE_LOST, true saat merespons
+    bool _currentlyPresent[SLAVE_COUNT + 1]; // indeks = slave_id (1–5)
 
     bool checkSlaveId(const PollResult& r, SecurityCheck& c);
     bool checkTiming(const PollResult& r, SecurityCheck& c);

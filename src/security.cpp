@@ -12,6 +12,7 @@ static const char* anomalyName(AnomalyType t) {
         case ANOMALY_TIMING:      return "TIMING";
         case ANOMALY_VALUE_RANGE: return "VALUE_RANGE";
         case ANOMALY_DEVICE_LOST: return "DEVICE_LOST";
+        case ANOMALY_IDENTITY:    return "IDENTITY";
         default:                  return "UNKNOWN";
     }
 }
@@ -19,8 +20,9 @@ static const char* anomalyName(AnomalyType t) {
 // ------------------------------------------------------------
 void Security::begin(BlockchainClient* bc) {
     _bc = bc;
-    memset(_requestSent, false, sizeof(_requestSent));
-    memset(_wasPresent,   false, sizeof(_wasPresent));
+    memset(_requestSent,      false, sizeof(_requestSent));
+    memset(_wasPresent,       false, sizeof(_wasPresent));
+    memset(_currentlyPresent, false, sizeof(_currentlyPresent));
     for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
         _lastForwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
     }
@@ -41,12 +43,26 @@ void Security::resetRequestState() {
 
 // ------------------------------------------------------------
 void Security::markPresent(uint8_t slaveId) {
-    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) _wasPresent[slaveId] = true;
+    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) {
+        _wasPresent[slaveId]       = true;
+        _currentlyPresent[slaveId] = true;
+    }
 }
 
 // ------------------------------------------------------------
 bool Security::wasPresent(uint8_t slaveId) {
     if (slaveId >= 1 && slaveId <= SLAVE_COUNT) return _wasPresent[slaveId];
+    return false;
+}
+
+// ------------------------------------------------------------
+void Security::markLost(uint8_t slaveId) {
+    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) _currentlyPresent[slaveId] = false;
+}
+
+// ------------------------------------------------------------
+bool Security::isCurrentlyPresent(uint8_t slaveId) {
+    if (slaveId >= 1 && slaveId <= SLAVE_COUNT) return _currentlyPresent[slaveId];
     return false;
 }
 

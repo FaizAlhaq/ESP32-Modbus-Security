@@ -19,7 +19,9 @@ contract ModbusSecurity {
     address public owner;
 
     // Whitelist: slave_id => terdaftar?
-    mapping(uint8 => bool) public whitelist;
+    mapping(uint8 => bool)    public whitelist;
+    // UID hardware per slave (96-bit disimpan sebagai uint256)
+    mapping(uint8 => uint256) public deviceUID;
 
     // ---- Events (tersimpan di blockchain log) ----
     event DeviceAdded(uint8 indexed slaveId);
@@ -48,21 +50,28 @@ contract ModbusSecurity {
 
     // ---- Admin: kelola whitelist ----
 
-    function addDevice(uint8 slaveId) external onlyOwner {
-        whitelist[slaveId] = true;
+    function addDevice(uint8 slaveId, uint256 uid) external onlyOwner {
+        whitelist[slaveId]  = true;
+        deviceUID[slaveId]  = uid;
         emit DeviceAdded(slaveId);
     }
 
     function removeDevice(uint8 slaveId) external onlyOwner {
         whitelist[slaveId] = false;
+        deviceUID[slaveId] = 0;
         emit DeviceRemoved(slaveId);
     }
 
     // ---- Dipanggil oleh ESP32 ----
 
-    // Cek apakah slave terdaftar (eth_call, tidak membutuhkan gas)
+    // Cek whitelist saja (dipanggil tiap poll oleh firmware)
     function verifyDevice(uint8 slaveId) external view returns (bool) {
         return whitelist[slaveId];
+    }
+
+    // Cek whitelist DAN kecocokan UID (dipanggil saat first-contact/reconnect)
+    function verifyDevice(uint8 slaveId, uint256 uid) external view returns (bool) {
+        return whitelist[slaveId] && deviceUID[slaveId] == uid;
     }
 
     // Catat transaksi debit air yang valid

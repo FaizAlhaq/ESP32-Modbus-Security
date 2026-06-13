@@ -18,9 +18,10 @@
 
 // Keccak-4 byte selector fungsi contract (hitung dari ABI)
 // Ganti dengan selector dari contract yang Anda deploy
-#define SEL_VERIFY_DEVICE    "0xeca8e63d"  // verifyDevice(uint8)
-#define SEL_LOG_TRANSACTION  "0xd8628357"  // logTransaction(string,string)
-#define SEL_LOG_ANOMALY      "0x98bf92e5"  // logAnomaly(uint8,uint8,string)
+#define SEL_VERIFY_DEVICE     "0xeca8e63d"  // verifyDevice(uint8)
+#define SEL_VERIFY_DEVICE_UID "0xd14cf946"  // verifyDevice(uint8,uint256)
+#define SEL_LOG_TRANSACTION   "0xd8628357"  // logTransaction(string,string)
+#define SEL_LOG_ANOMALY       "0x98bf92e5"  // logAnomaly(uint8,uint8,string)
 
 // Ukuran buffer payload JSON — cukup untuk satu RPC call
 #define RPC_BUF_SIZE  768
@@ -83,6 +84,51 @@ bool BlockchainClient::verifyDevice(uint8_t slaveId) {
         Serial.printf("[BC] verifyDevice(%u) → %s\n", slaveId, verified ? "OK" : "TOLAK");
     } else {
         Serial.printf("[BC] verifyDevice HTTP error: %d\n", code);
+    }
+
+    updateReachability(code > 0);
+    http.end();
+    return verified;
+}
+
+// ------------------------------------------------------------
+// Verifikasi identitas: cek whitelist DAN kecocokan UID on-chain.
+// Dipanggil hanya pada first-contact dan reconnect (bukan tiap poll).
+// ------------------------------------------------------------
+bool BlockchainClient::verifyDevice(uint8_t slaveId, const uint8_t uid32[32]) {
+    // Encode uid32 (32 byte) sebagai 64 char hex untuk ABI uint256
+    char uidHex[65];
+    for (int i = 0; i < 32; i++) snprintf(uidHex + i * 2, 3, "%02x", uid32[i]);
+    uidHex[64] = '\0';
+
+    char params[256];
+    snprintf(params, sizeof(params),
+             "[{\"to\":\"%s\",\"data\":\"%s%064x%s\"},\"latest\"]",
+             CONTRACT_ADDRESS, SEL_VERIFY_DEVICE_UID,
+             (unsigned int)slaveId, uidHex);
+
+    char payload[RPC_BUF_SIZE];
+    buildRpcPayload("eth_call", params, payload, sizeof(payload));
+
+    HTTPClient http;
+    http.begin(BLOCKCHAIN_RPC_URL);
+    http.addHeader("Content-Type", "application/json");
+
+    int  code     = http.POST(payload);
+    bool verified = false;
+
+    if (code == 200) {
+        String body = http.getString();
+        if (body.indexOf("\"result\":\"0x") >= 0) {
+            int    idx    = body.indexOf("\"result\":\"0x") + 12;
+            String hexVal = body.substring(idx, body.indexOf("\"", idx));
+            hexVal.trim();
+            for (char c : hexVal) { if (c != '0') { verified = true; break; } }
+        }
+        Serial.printf("[BC] verifyDevice(%u, UID) → %s\n",
+                      slaveId, verified ? "OK" : "TOLAK");
+    } else {
+        Serial.printf("[BC] verifyDevice(UID) HTTP error: %d\n", code);
     }
 
     updateReachability(code > 0);
