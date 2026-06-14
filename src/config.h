@@ -8,21 +8,21 @@
 // ------------------------------------------------------------
 // WiFi
 // ------------------------------------------------------------
-#define WIFI_SSID        "YOUR_WIFI_SSID"     // ← ganti dengan nama WiFi Anda
-#define WIFI_PASSWORD    "YOUR_WIFI_PASSWORD" // ← ganti dengan password WiFi Anda
+#define WIFI_SSID        "Extender 13"     // ← ganti dengan nama WiFi Anda
+#define WIFI_PASSWORD    "KamarNomor13" // ← ganti dengan password WiFi Anda
 #define WIFI_TIMEOUT_MS  15000                // Maks waktu koneksi (ms)
 
 // ------------------------------------------------------------
 // Blockchain (Ganache via JSON-RPC HTTP)
 // ------------------------------------------------------------
 // Ganti IP dengan hasil `ipconfig` (IPv4) pada PC yang menjalankan Ganache
-#define BLOCKCHAIN_RPC_URL   "http://<IP_PC>:7545"        // ← ganti IP
+#define BLOCKCHAIN_RPC_URL   "http://192.168.0.100:7545"        // ← ganti IP
 // Smart contract address — didapat dari Remix setelah deploy (EVM: Paris)
-#define CONTRACT_ADDRESS     "0x<CONTRACT_ADDRESS>"        // ← ganti setelah deploy
+#define CONTRACT_ADDRESS     "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"        // ← ganti setelah deploy
 // Private key akun Ganache baris pertama — lihat ikon kunci di tab Accounts (tanpa "0x")
-#define SENDER_PRIVATE_KEY   "<GANACHE_PRIVATE_KEY>"       // ← ganti dari Ganache
+#define SENDER_PRIVATE_KEY   "dc64a126362f70319bbe247c8be5c72a9db205035e01a99f9ead2fa971d59b11"       // ← ganti dari Ganache
 // Address Ethereum akun baris pertama Ganache
-#define SENDER_ADDRESS       "0x<GANACHE_ADDRESS>"         // ← ganti dari Ganache
+#define SENDER_ADDRESS       "0xD501FBA17fc20de2aDb9491252E5c64E499B596D"         // ← ganti dari Ganache
 // Gas limit untuk transaksi blockchain
 #define TX_GAS_LIMIT         "0x30000"
 
