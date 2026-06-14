@@ -52,6 +52,32 @@ Karena `CONTRACT_ADDRESS` tidak berubah, **`src/config.h` tidak perlu diubah** d
 
 ---
 
+## Pemulihan Setelah Mati Daya
+
+Saat listrik mati lalu menyala lagi, **tidak perlu deploy ulang maupun `addDevice` ulang**.
+Ketiga komponen pulih sendiri:
+
+**(a) Ganache** — buka **workspace tersimpan** yang sama. Seluruh chain (block, akun,
+kontrak ter-deploy, dan daftar `addDevice(slaveId, uid)`) kembali persis seperti sebelum
+mati daya. `CONTRACT_ADDRESS` **tetap**.
+
+**(b) Remix** — buka kembali kontrak dengan **At Address**: tempel `CONTRACT_ADDRESS` lama
+→ klik **At Address** (tombol biru). Kontrak beserta state-nya (whitelist + UID) muncul
+lagi **tanpa Deploy**.
+
+**(c) ESP32** — setelah restart, firmware **otomatis re-baseline**: state forward-pulse
+terakhir direset ke sentinel, sehingga pembacaan forward pulse **pertama** setelah boot
+dijadikan baseline baru (tidak keliru dianggap anomali `VALUE_RANGE`). Sensor AGNIKA
+sendiri menyimpan totalizer di **memori non-volatile**, jadi nilai forward/backward/
+accumulative **lanjut dari posisi terakhir** — bukan dari nol. Pada kontak pertama
+pasca-restart, ESP32 membaca UID lagi dan memverifikasi identitas ke kontrak (whitelist +
+UID-nya masih ada), lalu polling normal berlanjut.
+
+> Ringkas: buka workspace Ganache → **At Address** di Remix → nyalakan ESP32.
+> **Tanpa deploy, tanpa `addDevice` ulang.**
+
+---
+
 ## B. Setup Pertama Kali (atau Pindah PC / Deploy Baru)
 
 Lakukan bagian ini **hanya** jika belum pernah deploy, atau sengaja deploy kontrak baru.
@@ -245,6 +271,31 @@ memblokir port tersebut.
 ```powershell
 %USERPROFILE%\.platformio\penv\Scripts\pio test -e esp32dev
 ```
+
+---
+
+## Data yang Ditangkap per Slave
+
+Tiap slave AGNIKA menyumbang lima data berikut ke gateway tiap polling:
+
+| Data | Sumber register | Peran |
+|---|---|---|
+| `id` | Modbus slave address (1–5) | **Identitas** — dicocokkan ke whitelist on-chain |
+| `uid` | 6 register @`0x000D` (96-bit, big-endian) | **Identitas** — dicocokkan ke `deviceUID` on-chain |
+| `forward` | uint32 @`0x0000`–`0x0001` (LSW dulu) | **Integritas nilai** — totalizer, wajib monoton naik |
+| `backward` | uint32 @`0x0002`–`0x0003` (LSW dulu) | Data proses pendukung (turut tercatat) |
+| `accumulative` | dihitung: `forward − backward` | Data proses pendukung (turut tercatat) |
+
+**Deteksi keamanan berfokus pada dua hal:**
+
+- **IDENTITAS** — kombinasi `id` + `uid`. Slave yang `id`/`uid`-nya tidak cocok dengan
+  kontrak memicu anomali `IDENTITY` (kontak pertama / reconnect) lalu `ROGUE_ID/WHITELIST`
+  pada pengecekan whitelist per-poll.
+- **INTEGRITAS NILAI** — `forward` (totalizer) harus **monoton naik**. Nilai turun →
+  anomali `VALUE_RANGE`; lonjakan melebihi `MAX_PULSE_DELTA` → anomali `VALUE_RANGE`.
+
+`backward` dan `accumulative` **bukan** dasar penolakan keamanan — keduanya direkam
+sebagai **data proses pendukung** untuk analisis/laporan, bukan untuk deteksi anomali.
 
 ---
 
