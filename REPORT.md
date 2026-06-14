@@ -130,3 +130,36 @@ Hal-hal berikut bergantung pada hardware/Ganache dan **tidak bisa diotomatiskan 
   mentah di CSV. Dibiarkan apa adanya (salinan identik); cukup diketahui saat membaca CSV.
 - **WiFi & private key** di `src/config.h` berisi kredensial pengujian asli. Pertimbangkan
   memindahkannya ke `src/config_secret.h` (sudah ada di `.gitignore`) bila repo akan dibagikan.
+
+---
+
+## 5. Perubahan Lanjutan (instruksi TAMBAHAN)
+
+Setiap perubahan di bawah langsung `git add` + `commit` + `push` ke
+`origin/main` (sesuai instruksi, agar bisa diperiksa dari repo).
+
+1. **Hapus unit test virtual** — seluruh `test/` dihapus
+   (`test/test_security/test_main.cpp` + README boilerplate). Pengujian dilakukan
+   langsung di hardware fisik. Catatan: test lama juga sudah **stale** (mengacu
+   `REG_FLOW_RATE`/`FLOW_RATE_MIN`/`FLOW_RATE_MAX` yang tidak ada lagi setelah pindah ke
+   peta register pulse totalizer AGNIKA). Setelan test di `platformio.ini`
+   (`test_framework`, `test_build_src`, `lib_ignore`) dibiarkan — tidak mengganggu build.
+
+2. **`tools/logger/hitung_metrik.py`** (baru) — baca `hasil_pengujian.csv` (satu baris =
+   satu trial), tally kolom `Sel` (TP/FP/FN/TN) + `response(ms)`, lalu cetak confusion
+   matrix + Detection Rate, FPR, Precision, Accuracy, F1, dan response time (mean & SD,
+   sampel n-1). Pure Python (`csv` + `statistics`), toleran delimiter `,`/`;`, desimal
+   koma, dan variasi nama header. Sudah di-smoke-test dengan data sintetis.
+   > Skrip referensi tidak terlampir di sesi ini, jadi diimplementasikan sesuai spesifikasi
+   > yang diberikan. Jika format `hasil_pengujian.csv` Anda berbeda, beri tahu untuk disesuaikan.
+
+3. **`DEPLOYMENT.md`** — dua bagian baru: **"Pemulihan Setelah Mati Daya"** (workspace
+   Ganache tersimpan → At Address di Remix tanpa deploy → ESP32 auto re-baseline + totalizer
+   lanjut dari memori NV, tanpa `addDevice` ulang) dan **"Data yang Ditangkap per Slave"**
+   (id, uid, forward, backward, accumulative; deteksi fokus pada IDENTITAS + INTEGRITAS
+   NILAI, backward & accumulative = data proses pendukung).
+
+### Langkah manual tambahan
+- **Sediakan `hasil_pengujian.csv`** dengan minimal kolom `Sel` (isi TP/FP/FN/TN per trial)
+  dan `response(ms)` agar `hitung_metrik.py` bisa menghitung. Jalankan:
+  `python tools/logger/hitung_metrik.py hasil_pengujian.csv`.
