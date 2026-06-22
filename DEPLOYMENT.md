@@ -1,14 +1,14 @@
 # Panduan Deployment — ESP32 Modbus Security Gateway
 
-Dokumen ini mencatat langkah deployment dari nol **dan** langkah singkat saat hanya
-melanjutkan pengujian (PC sudah pernah di-setup). Ganache berjalan lokal, jadi
-`CONTRACT_ADDRESS` ditentukan saat deploy — tetapi **selama workspace Ganache yang sama
-dipakai, alamat itu tidak berubah** (lihat bagian Persistensi di bawah).
+> Buka workspace Ganache → At Address di Remix → nyalakan ESP32.
+> Tidak perlu deploy ulang selama workspace sama.
 
-> **TL;DR alur uji singkat:**
-> At Address / deploy → set `CONTRACT_ADDRESS` di `src/config.h` → reflash →
-> baca UID dari serial → `addDevice(id, uid)` (DUA argumen) → jalankan attacker →
-> rekam serial + export CSV. Detail lengkap di bagian [Alur Uji Singkat](#alur-uji-singkat-end-to-end).
+| Situasi | Langsung ke |
+|---|---|
+| Baru pertama kali / pindah PC | [B. Setup Pertama Kali](#b-setup-pertama-kali-atau-pindah-pc--deploy-baru) |
+| PC restart, Ganache & kontrak sudah ada | [A. Setelah PC Restart](#a-setelah-pc-restart--jangan-deploy-ulang) |
+| Mati listrik / ESP32 restart | [Pemulihan Mati Daya](#pemulihan-setelah-mati-daya) |
+| Langsung mulai uji serangan | [Alur Uji Singkat](#alur-uji-singkat-end-to-end) |
 
 > **Catatan:** Direktori `test/` telah dihapus. Validasi sistem dilakukan melalui
 > pengujian langsung pada hardware fisik (Skenario A–E), bukan unit test virtual.
@@ -17,67 +17,56 @@ dipakai, alamat itu tidak berubah** (lihat bagian Persistensi di bawah).
 
 ## 0. Persistensi Ganache (workspace tersimpan)
 
-Ganache Desktop menyimpan **workspace** (blockchain + akun + kontrak yang sudah
-ter-deploy) ke disk. Selama Anda membuka **workspace yang sama**:
+Selama membuka **workspace yang sama**, semua data tetap ada:
 
-- Semua block, akun, private key, dan kontrak yang sudah di-deploy **tetap ada**.
-- **`CONTRACT_ADDRESS` tidak berubah** — kontrak yang sudah di-deploy permanen di
-  workspace tersebut.
-- Daftar `addDevice(slaveId, uid)` yang sudah dikirim **tetap tersimpan** (tidak perlu
-  daftar ulang).
+| Yang tersimpan | Status |
+|---|---|
+| Block, akun, private key | ✅ Permanen |
+| `CONTRACT_ADDRESS` | ✅ Tidak berubah |
+| Daftar `addDevice(slaveId, uid)` | ✅ Tidak perlu daftar ulang |
 
-> **Gunakan workspace, bukan QUICKSTART.** Quickstart membuat chain baru sekali pakai
-> yang hilang saat Ganache ditutup. Buat **New Workspace → Ethereum**, beri nama, lalu
-> **Save**. Mulai dari sini, tutup/buka Ganache tidak akan menghapus kontrak.
+> ⚠️ **Gunakan New Workspace, bukan Quickstart.** Quickstart membuat chain baru
+> yang hilang saat Ganache ditutup. Buat **New Workspace → Ethereum**, beri nama,
+> lalu **Save**.
 
 ---
 
 ## A. Setelah PC Restart — JANGAN Deploy Ulang
 
-Jika PC (atau Ganache) di-restart dan Anda membuka **workspace yang sama**, kontrak masih
-ada di alamat yang sama. **Jangan deploy ulang** (deploy ulang = alamat baru = harus
-update config + daftar ulang device).
+> Deploy ulang = alamat baru = update config + daftar ulang device.
+> Selama workspace Ganache sama, **tidak perlu itu**.
 
-Cara reconnect ke kontrak yang sudah ada di Remix:
+**Cara reconnect Remix ke kontrak lama:**
 
-1. Buka https://remix.ethereum.org
-2. Pastikan file `contracts/ModbusSecurity.sol` ada & ter-compile (EVM Version **`paris`**).
-3. Tab **Deploy & Run**:
-   - Environment: **Custom - External Http Provider**, URL: `http://127.0.0.1:7545`
-   - Pada bagian **"At Address"** (bukan tombol "Deploy" oranye), **tempel
-     `CONTRACT_ADDRESS`** yang lama → klik **At Address** (tombol biru).
-4. Kontrak muncul lagi di panel "Deployed Contracts", lengkap dengan state-nya
-   (whitelist + UID yang sudah didaftarkan tetap ada).
+1. Buka `remix.ethereum.org`
+2. Tab **Deploy & Run** → Environment: **Custom - External Http Provider**
+   → URL: `http://127.0.0.1:7545`
+3. Di bagian **At Address** (bukan tombol Deploy oranye), tempel `CONTRACT_ADDRESS`
+   → klik **At Address**
+4. Kontrak muncul di panel Deployed Contracts dengan state lengkap ✅
 
-Karena `CONTRACT_ADDRESS` tidak berubah, **`src/config.h` tidak perlu diubah** dan ESP32
-**tidak perlu di-reflash** — cukup pastikan IP Ganache di `BLOCKCHAIN_RPC_URL` masih sama
-(`ipconfig` → IPv4). Jika IP PC berubah, update hanya baris `BLOCKCHAIN_RPC_URL` lalu reflash.
+| Kondisi | Yang perlu dilakukan |
+|---|---|
+| IP PC tidak berubah | Tidak perlu apa-apa — langsung At Address |
+| IP PC berubah | Update `BLOCKCHAIN_RPC_URL` di `config.h` → reflash |
+| Ingin reset state (sengaja deploy baru) | Lihat bagian B |
 
 ---
 
 ## Pemulihan Setelah Mati Daya
 
-Saat listrik mati lalu menyala lagi, **tidak perlu deploy ulang maupun `addDevice` ulang**.
-Ketiga komponen pulih sendiri:
+Tidak perlu deploy ulang maupun `addDevice` ulang. Ketiga komponen pulih sendiri:
 
-**(a) Ganache** — buka **workspace tersimpan** yang sama. Seluruh chain (block, akun,
-kontrak ter-deploy, dan daftar `addDevice(slaveId, uid)`) kembali persis seperti sebelum
-mati daya. `CONTRACT_ADDRESS` **tetap**.
+| Komponen | Langkah | Hasil |
+|---|---|---|
+| **Ganache** | Buka workspace tersimpan yang sama | Chain, kontrak, whitelist kembali — `CONTRACT_ADDRESS` tetap |
+| **Remix** | At Address + tempel `CONTRACT_ADDRESS` lama | State (whitelist + UID) muncul kembali tanpa Deploy |
+| **ESP32** | Nyalakan (tidak perlu apa-apa) | Auto re-baseline; UID diverifikasi ulang ke kontrak saat kontak pertama |
 
-**(b) Remix** — buka kembali kontrak dengan **At Address**: tempel `CONTRACT_ADDRESS` lama
-→ klik **At Address** (tombol biru). Kontrak beserta state-nya (whitelist + UID) muncul
-lagi **tanpa Deploy**.
+> Sensor AGNIKA menyimpan totalizer di memori non-volatile — nilai
+> forward/backward/accumulative **lanjut dari posisi terakhir**, bukan dari nol.
 
-**(c) ESP32** — setelah restart, firmware **otomatis re-baseline**: state forward-pulse
-terakhir direset ke sentinel, sehingga pembacaan forward pulse **pertama** setelah boot
-dijadikan baseline baru (tidak keliru dianggap anomali `VALUE_RANGE`). Sensor AGNIKA
-sendiri menyimpan totalizer di **memori non-volatile**, jadi nilai forward/backward/
-accumulative **lanjut dari posisi terakhir** — bukan dari nol. Pada kontak pertama
-pasca-restart, ESP32 membaca UID lagi dan memverifikasi identitas ke kontrak (whitelist +
-UID-nya masih ada), lalu polling normal berlanjut.
-
-> Ringkas: buka workspace Ganache → **At Address** di Remix → nyalakan ESP32.
-> **Tanpa deploy, tanpa `addDevice` ulang.**
+**Ringkas:** buka Ganache → At Address di Remix → nyalakan ESP32. Selesai.
 
 ---
 
