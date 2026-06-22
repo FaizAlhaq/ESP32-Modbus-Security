@@ -1,12 +1,13 @@
-# LOCKED_DEFINITION.md
 # Definisi Sistem — TERKUNCI
-# Jangan ubah tanpa meninjau ulang bersama pembimbing/penguji.
-# Berlaku untuk seluruh kode, dokumen, dan skenario pengujian.
 
-## Prinsip Fondasi (TIDAK BOLEH DILANGGAR)
-- **ESP32 MENDETEKSI** anomali — di firmware, secara lokal
-- **Blockchain HANYA MENCATAT** secara tamper-evident
-- → Jangan pernah tulis "blockchain mendeteksi"
+> Jangan ubah tanpa meninjau ulang bersama pembimbing/penguji.
+> Berlaku untuk seluruh kode, dokumen, dan skenario pengujian.
+
+## Prinsip Fondasi
+
+ESP32 **mendeteksi** anomali secara lokal di firmware.
+Blockchain **hanya mencatat** secara tamper-evident.
+Jangan pernah tulis "blockchain mendeteksi".
 
 ## Field yang Ditangkap per Slave
 
@@ -18,7 +19,7 @@
 | `backward` | uint32 @0x0002–0x0003 | Data proses pendukung (tercatat, bukan sinyal deteksi) |
 | `accumulative` | derived | Data proses pendukung (tercatat, bukan sinyal deteksi) |
 
-## 5 Jenis Anomali (sinkron: kode ↔ dokumen ↔ confusion matrix)
+## Jenis Anomali
 
 | Tipe | Nama | Keterangan |
 |---|---|---|
@@ -29,21 +30,29 @@
 | 4 | DEVICE_LOST | Slave pernah hadir, kini tidak merespons |
 | 5 | IDENTITY | UID tidak cocok atau belum terdaftar on-chain |
 
-## Scope Pengujian (Proof-of-Concept)
-- 1 lantai, 2 slave fisik aktif (ID 1 dan ID 4)
-- WiFi sebagai pengganti Ethernet
-- Ganache 1-node lokal (instant mining = batas bawah response time)
-- Sniffing pasif = di luar scope (gateway hanya evaluasi respons atas poll-nya sendiri)
-- Peniruan sempurna dengan kloning UID = FN by design → future work kriptografi
+Tabel ini harus sinkron dengan: kode (`blockchain_client.h`) ↔ dokumen skripsi ↔
+confusion matrix pengujian.
 
-## Batasan yang Tidak Boleh Diklaim Terdeteksi
+## Scope Pengujian (Proof-of-Concept)
+
+| Aspek | Nilai |
+|---|---|
+| Slave fisik aktif | ID 1 dan ID 4 (1 lantai) |
+| Jaringan | WiFi (pengganti Ethernet) |
+| Blockchain | Ganache 1-node lokal (instant mining = batas bawah response time) |
+| Sniffing pasif | Di luar scope — gateway hanya evaluasi respons atas poll-nya sendiri |
+| Peniruan sempurna | FN by design — future work kriptografi |
+
+## Batasan Deteksi (Tidak Boleh Diklaim Terdeteksi)
+
 - Frame RS485 dari ID yang tidak pernah di-poll
 - Respons tanpa permintaan (unsolicited response)
 - Sniffing (penyadapan pasif)
 - Peniruan sempurna (attacker kloning UID + nilai wajar)
 
-## Jika Ada Perubahan
-Setiap perubahan yang menyentuh tabel di atas wajib:
+## Prosedur Jika Ada Perubahan
+
+Setiap perubahan yang menyentuh isi file ini wajib:
 1. Ditinjau ulang bersama pembimbing/penguji sebelum diimplementasi
-2. Diperbarui di file ini, DEPLOYMENT.md, dan dokumen skripsi secara bersamaan
-3. Di-commit dengan pesan yang menyebut "LOCKED_DEFINITION update"
+2. Diperbarui serentak di file ini, DEPLOYMENT.md, dan dokumen skripsi
+3. Di-commit dengan pesan yang menyebut `LOCKED_DEFINITION update`

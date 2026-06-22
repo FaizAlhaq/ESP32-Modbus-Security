@@ -10,6 +10,9 @@ dipakai, alamat itu tidak berubah** (lihat bagian Persistensi di bawah).
 > baca UID dari serial → `addDevice(id, uid)` (DUA argumen) → jalankan attacker →
 > rekam serial + export CSV. Detail lengkap di bagian [Alur Uji Singkat](#alur-uji-singkat-end-to-end).
 
+> **Catatan:** Direktori `test/` telah dihapus. Validasi sistem dilakukan melalui
+> pengujian langsung pada hardware fisik (Skenario A–E), bukan unit test virtual.
+
 ---
 
 ## 0. Persistensi Ganache (workspace tersimpan)
@@ -229,11 +232,6 @@ python tools/logger/export_anomali.py
 Menghasilkan `anomali_log.csv` (kolom: `no, waktu, block, slaveId, jenis, detail, txHash`)
 yang bisa langsung dibuka di Excel.
 
-> Catatan: peta `JENIS` di skrip memetakan tipe 1–4 (`ROGUE_ID/WHITELIST`, `TIMING`,
-> `VALUE_RANGE`, `DEVICE_LOST`). Tipe `0` (`NO_REQUEST`) dan `5` (`IDENTITY`) akan tampil
-> sebagai angka mentah di kolom `jenis` — cocok dengan `enum AnomalyType` di
-> `src/blockchain_client.h`.
-
 ---
 
 ## Alur Uji Singkat (end-to-end)
@@ -267,11 +265,6 @@ Jika muncul `[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU` atau `Connection refused`: p
 IP Ganache di `config.h`, pastikan Ganache jalan di port 7545, dan firewall tidak
 memblokir port tersebut.
 
-### Catatan: Unit Test
-Seluruh direktori `test/` telah dihapus dari repositori. Validasi sistem
-dilakukan melalui pengujian langsung pada hardware fisik (Skenario A–E),
-bukan unit test virtual, karena sensor dan gateway bersifat fisikal.
-
 ---
 
 ## Data yang Ditangkap per Slave
@@ -296,31 +289,3 @@ Tiap slave AGNIKA menyumbang lima data berikut ke gateway tiap polling:
 
 `backward` dan `accumulative` **bukan** dasar penolakan keamanan — keduanya direkam
 sebagai **data proses pendukung** untuk analisis/laporan, bukan untuk deteksi anomali.
-
----
-
-## Selector ABI Kontrak (tetap sama, tidak perlu diubah)
-
-Selector dihitung dari signature fungsi dan sudah benar di `src/blockchain_client.cpp`
-(diverifikasi ulang via keccak256):
-
-| Fungsi | Selector |
-|---|---|
-| `verifyDevice(uint8)` | `0xeca8e63d` |
-| `verifyDevice(uint8,uint256)` | `0xd14cf946` |
-| `logTransaction(string,string)` | `0xd8628357` |
-| `logAnomaly(uint8,uint8,string)` | `0x98bf92e5` |
-
----
-
-## Nilai Terakhir (device sebelumnya — referensi, sesuaikan dengan workspace Anda)
-
-| Field | Nilai (saat ini di `src/config.h`) |
-|---|---|
-| `BLOCKCHAIN_RPC_URL` | `http://192.168.0.100:7545` |
-| `CONTRACT_ADDRESS` | `0x3eC770D542c28cf75daf4882ea1D97ddb6937660` |
-| `SENDER_ADDRESS` | `0xD501FBA17fc20de2aDb9491252E5c64E499B596D` |
-
-> **Catatan:** Nilai di atas hanya berlaku selama Ganache membuka **workspace yang sama**
-> dengan IP yang sama. Selama itu, `CONTRACT_ADDRESS` tetap (lihat bagian Persistensi).
-> Deploy kontrak baru = `CONTRACT_ADDRESS` baru = update `config.h` + reflash + daftar ulang.
