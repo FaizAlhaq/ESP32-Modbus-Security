@@ -267,10 +267,10 @@ Jika muncul `[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU` atau `Connection refused`: p
 IP Ganache di `config.h`, pastikan Ganache jalan di port 7545, dan firewall tidak
 memblokir port tersebut.
 
-### Jalankan Unit Test (opsional)
-```powershell
-%USERPROFILE%\.platformio\penv\Scripts\pio test -e esp32dev
-```
+### Catatan: Unit Test
+Seluruh direktori `test/` telah dihapus dari repositori. Validasi sistem
+dilakukan melalui pengujian langsung pada hardware fisik (Skenario A–E),
+bukan unit test virtual, karena sensor dan gateway bersifat fisikal.
 
 ---
 

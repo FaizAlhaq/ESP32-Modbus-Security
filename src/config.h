@@ -16,7 +16,7 @@
 // Blockchain (Ganache via JSON-RPC HTTP)
 // ------------------------------------------------------------
 // Ganti IP dengan hasil `ipconfig` (IPv4) pada PC yang menjalankan Ganache
-#define BLOCKCHAIN_RPC_URL   "http://192.168.0.100:7545"        // ← ganti IP
+#define BLOCKCHAIN_RPC_URL   "http://192.168.0.104:7545"        // ← ganti IP
 // Smart contract address — didapat dari Remix setelah deploy (EVM: Paris)
 #define CONTRACT_ADDRESS     "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"        // ← ganti setelah deploy
 // Private key akun Ganache baris pertama — lihat ikon kunci di tab Accounts (tanpa "0x")
