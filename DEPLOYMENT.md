@@ -1,355 +1,225 @@
 # Panduan Deployment — ESP32 Modbus Security Gateway
 
-> Buka workspace Ganache → Compile sol + Add Contract di Remix → nyalakan ESP32.
-> Tidak perlu deploy ulang selama workspace sama.
+> Ikuti bab **A → B → C → D → E** secara berurutan dari atas ke bawah.
+> Bab **F** hanya dibuka kalau PC mati / restart.
 
-| Situasi | Langsung ke |
-|---|---|
-| Baru pertama kali / pindah PC | [B. Setup Pertama Kali](#b-setup-pertama-kali-atau-pindah-pc--deploy-baru) |
-| PC restart, Ganache & kontrak sudah ada | [A. Setelah PC Restart](#a-setelah-pc-restart--jangan-deploy-ulang) |
-| Mati listrik / ESP32 restart | [Pemulihan Mati Daya](#pemulihan-setelah-mati-daya) |
-| Langsung mulai uji serangan | [Alur Uji Singkat](#alur-uji-singkat-end-to-end) |
-
-> **Catatan:** Direktori `test/` telah dihapus. Validasi sistem dilakukan melalui
-> pengujian langsung pada hardware fisik (Skenario A–E), bukan unit test virtual.
-
----
-
-## 0. Persistensi Ganache (workspace tersimpan)
-
-Selama membuka **workspace yang sama**, semua data tetap ada:
-
-| Yang tersimpan | Status |
-|---|---|
-| Block, akun, private key | ✅ Permanen |
-| `CONTRACT_ADDRESS` | ✅ Tidak berubah |
-| Daftar `addDevice(slaveId, uid)` | ✅ Tidak perlu daftar ulang |
-
-> ⚠️ **Gunakan New Workspace, bukan Quickstart.** Quickstart membuat chain baru
-> yang hilang saat Ganache ditutup. Buat **New Workspace → Ethereum**, beri nama,
-> lalu **Save**.
-
----
-
-## A. Setelah PC Restart — JANGAN Deploy Ulang
-
-> Deploy ulang = alamat baru = update config + daftar ulang device.
-> Selama workspace Ganache sama, **tidak perlu itu**.
-
-**Cara reconnect Remix ke kontrak lama:**
-
-1. Buka `remix.ethereum.org` → pastikan file `contracts/ModbusSecurity.sol` terbuka
-2. Tab **Solidity Compiler** → pilih compiler `0.8.x`
-   → ⚠️ Advanced Configuration: set **EVM Version ke `paris`** → klik **Compile**
-3. Tab **Deploy & Run** → Environment: **Custom - External Http Provider**
-   → URL: `http://127.0.0.1:7545`
-4. Di panel **Deployed Contracts** → klik **`+ Add Contract`**
-   → tempel `CONTRACT_ADDRESS` yang lama → konfirmasi
-5. Kontrak muncul dengan seluruh state-nya (whitelist + UID tetap ada) ✅
-
-> ⚠️ Tombol **At Address** hanya muncul setelah compile selesai.
-> Jangan klik **Deploy** (oranye) — itu membuat kontrak baru dengan state kosong.
-
-| Kondisi | Yang perlu dilakukan |
-|---|---|
-| IP PC tidak berubah | Tidak perlu apa-apa — langsung At Address |
-| IP PC berubah | Update `BLOCKCHAIN_RPC_URL` di `config.h` → reflash |
-| Ingin reset state (sengaja deploy baru) | Lihat bagian B |
-
----
-
-## Pemulihan Setelah Mati Daya
-
-Tidak perlu deploy ulang maupun `addDevice` ulang. Ketiga komponen pulih sendiri:
-
-| Komponen | Langkah | Hasil |
+| Bab | Isi | Kapan dipakai |
 |---|---|---|
-| **Ganache** | Buka workspace tersimpan yang sama | Chain, kontrak, whitelist kembali — `CONTRACT_ADDRESS` tetap |
-| **Remix** | Compile sol (EVM paris) → Deployed Contracts → **+ Add Contract** + tempel `CONTRACT_ADDRESS` | State (whitelist + UID) muncul kembali tanpa Deploy |
-| **ESP32** | Nyalakan (tidak perlu apa-apa) | Auto re-baseline; UID diverifikasi ulang ke kontrak saat kontak pertama |
-
-> Sensor AGNIKA menyimpan totalizer di memori non-volatile — nilai
-> forward/backward/accumulative **lanjut dari posisi terakhir**, bukan dari nol.
-
-**Ringkas:** buka Ganache → At Address di Remix → nyalakan ESP32. Selesai.
+| [A](#a-persiapan-awal) | Persiapan awal (Ganache, Remix, config, flash) | Sekali di awal |
+| [B](#b-daftarkan-perangkat) | Daftarkan perangkat (UID → addDevice) | Setelah A |
+| [C](#c-mulai-monitor-serial) | Mulai monitor serial (rekam ke log) | Setiap sesi uji |
+| [D](#d-jalankan-skenario-pengujian) | Jalankan skenario A–E + Substitusi | Inti pengujian |
+| [E](#e-olah-data-otomatis) | Olah data otomatis → metrik | Setelah pengujian |
+| [F](#f-pemulihan-setelah-mati-daya--restart) | Pemulihan setelah mati daya / restart | Hanya saat perlu |
 
 ---
 
-## B. Setup Pertama Kali (atau Pindah PC / Deploy Baru)
+## A. Persiapan Awal
 
-Lakukan bagian ini **hanya** jika belum pernah deploy, atau sengaja deploy kontrak baru.
+Tujuan bab ini: blockchain hidup, kontrak ter-deploy, ESP32 menyala dan tersambung.
 
-### B.1. Jalankan Ganache
-- Download Ganache Desktop: https://trufflesuite.com/ganache/
-- **New Workspace → Ethereum** (bukan Quickstart), beri nama, **Save**.
-- Pastikan port: **7545**
-- Catat **IP PC** (`ipconfig` → IPv4 Address)
+### A.1 Jalankan Ganache
 
-### B.2. Deploy Kontrak via Remix IDE
-- Buka https://remix.ethereum.org
-- Buat file baru → copy isi `contracts/ModbusSecurity.sol`
-- Tab **Solidity Compiler** → pilih `0.8.x`
-  - > ⚠️ **Sebelum compile:** di Advanced Configuration, set **EVM Version ke `paris`**
-    > (Ganache tidak mendukung opcode `PUSH0` dari Shanghai ke atas)
-  - Klik **Compile**
-- Tab **Deploy & Run**:
-  - Environment: **Custom - External Http Provider**, URL: `http://127.0.0.1:7545`
-  - Klik **Deploy** (oranye)
-  - Salin **alamat kontrak** dari "Deployed Contracts" → ini `CONTRACT_ADDRESS` baru.
+1. Buka **Ganache Desktop** (download: https://trufflesuite.com/ganache/ bila belum ada).
+2. Klik **New Workspace** → pilih **Ethereum**. **Jangan pilih Quickstart** (chain-nya hilang saat ditutup).
+3. Beri nama workspace, lalu klik **Save Workspace**.
+4. Pastikan **RPC Server** di port **7545** (`HTTP://127.0.0.1:7545`).
+5. Buka **Command Prompt** → ketik `ipconfig` → catat **IPv4 Address** PC kamu (mis. `192.168.0.104`). Ini dipakai di langkah A.3.
 
-### B.3. Update `src/config.h`
+> Setelah workspace ini dibuat, **selalu buka workspace yang sama** agar kontrak & data tidak hilang.
 
-| Field | Cara dapat |
+### A.2 Deploy Kontrak via Remix
+
+1. Buka https://remix.ethereum.org
+2. Di panel kiri **File Explorer**, buat file baru → beri nama `ModbusSecurity.sol` → copy seluruh isi `contracts/ModbusSecurity.sol` dari repo ke situ.
+3. Klik ikon **Solidity Compiler** (kiri) → pilih versi compiler **0.8.x**.
+4. Klik **Advanced Configurations** → ubah **EVM Version** menjadi **`paris`**.
+   > ⚠️ Wajib `paris`. Ganache tidak mendukung opcode `PUSH0` dari versi Shanghai ke atas — kalau tidak diubah, kontrak gagal jalan.
+5. Klik tombol **Compile ModbusSecurity.sol**. Pastikan muncul centang hijau.
+6. Klik ikon **Deploy & Run Transactions** (kiri).
+7. Pada **Environment**, pilih **Custom - External Http Provider** → isi URL `http://127.0.0.1:7545` → OK.
+8. Klik tombol **Deploy** (oranye).
+9. Di panel **Deployed Contracts** (bawah), klik ikon **copy** di sebelah nama kontrak → ini **CONTRACT_ADDRESS** baru. Simpan.
+
+### A.3 Isi `src/config.h`
+
+Buka `src/config.h`, isi empat baris ini:
+
+| Field | Cara mendapatkan |
 |---|---|
-| `BLOCKCHAIN_RPC_URL` | `ipconfig` → IPv4, port 7545 |
-| `CONTRACT_ADDRESS` | Remix → Deployed Contracts → copy address |
-| `SENDER_PRIVATE_KEY` | Ganache → tab Accounts → ikon kunci (tanpa `0x`) |
-| `SENDER_ADDRESS` | Ganache → tab Accounts → address baris pertama |
+| `BLOCKCHAIN_RPC_URL` | `http://<IPv4 dari A.1>:7545` |
+| `CONTRACT_ADDRESS` | Alamat dari A.2 langkah 9 |
+| `SENDER_PRIVATE_KEY` | Ganache → tab **Accounts** → klik ikon **kunci** akun pertama → copy private key **tanpa `0x`** |
+| `SENDER_ADDRESS` | Ganache → tab **Accounts** → alamat akun baris pertama |
 
 ```cpp
-#define BLOCKCHAIN_RPC_URL   "http://<IP_PC>:7545"
-#define CONTRACT_ADDRESS     "<dari Remix>"
+#define BLOCKCHAIN_RPC_URL   "http://192.168.0.104:7545"
+#define CONTRACT_ADDRESS     "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"
 #define SENDER_PRIVATE_KEY   "<dari Ganache, tanpa 0x>"
 #define SENDER_ADDRESS       "<dari Ganache>"
 ```
 
-### B.4. Build & Flash
+Simpan file (`Ctrl + S`).
 
-> **Tip:** Buka terminal VS Code dengan shortcut **Esc + `** (backtick)
+### A.4 Build & Flash ESP32
 
-```powershell
-%USERPROFILE%\.platformio\penv\Scripts\pio run -e esp32dev --target upload
-```
+1. Sambungkan ESP32 ke PC via USB.
+2. Buka terminal di VS Code (shortcut: **Ctrl + `** backtick).
+3. Jalankan:
+   ```powershell
+   %USERPROFILE%\.platformio\penv\Scripts\pio run -e esp32dev --target upload
+   ```
+4. Tunggu sampai muncul `SUCCESS`. ESP32 sekarang menjalankan firmware terbaru.
 
----
-
-## C. Registrasi Perangkat — `addDevice` WAJIB DUA Argumen
-
-> ⚠️ **PENTING:** Kontrak sekarang memakai identitas berbasis UID. Fungsi
-> **`addDevice(uint8 slaveId, uint256 uid)` membutuhkan DUA argumen**. Memanggil dengan
-> satu argumen (seperti versi lama) **tidak akan meng-compile / akan ditolak Remix**.
-
-UID hardware tiap slave dibaca otomatis oleh ESP32 dari 6 register AGNIKA mulai `0x000D`
-(96-bit, big-endian) dan dicetak ke serial saat kontak pertama / reconnect:
-
-```
-[SEC] Slave 1 UID = 0x0000000000000000000000AB
-```
-
-Ambil 24-hex itu (12 byte bermakna) dan daftarkan di Remix → panel "Deployed Contracts"
-→ fungsi `addDevice`:
-
-```
-addDevice(1, 0x0000000000000000000000AB)   → transact
-addDevice(2, 0x........................)   → transact
-...
-addDevice(5, 0x........................)   → transact
-```
-
-- Argumen pertama = `slaveId` (1–5).
-- Argumen kedua = `uid` dalam hex `0x...` persis seperti yang dicetak ESP32.
-- Setelah ini, ESP32 yang mem-poll slave tsb akan melihat
-  `[BC] verifyDevice(N, UID) → OK` dan `[SEC] identitas slave N terverifikasi (UID cocok)`.
-
-> Slave yang **belum** didaftarkan (atau UID-nya salah) akan memicu anomali
-> `IDENTITY` (jenis 5) saat kontak pertama, lalu anomali `ROGUE_ID/WHITELIST`
-> pada pengecekan whitelist per-poll.
+> ⚠️ Setiap kali `config.h` berubah, **wajib flash ulang** — kalau tidak, ESP32 masih memakai konfigurasi lama.
 
 ---
 
-## D. Menjalankan Attacker (slave Modbus palsu)
+## B. Daftarkan Perangkat
 
-Skrip ada di `tools/attacker/attacker_slave.py`. Butuh **pyserial**:
+Tujuan bab ini: tiap slave sah (ID 1 dan ID 4) terdaftar di kontrak dengan UID-nya, agar tidak dianggap anomali.
 
+> ⚠️ `addDevice(uint8 slaveId, uint256 uid)` butuh **DUA argumen**. Memanggil dengan satu argumen akan **ditolak Remix**.
+
+### B.1 Baca UID dari serial
+
+1. Buka serial monitor (lihat Bab C bila belum jalan).
+2. Saat ESP32 mem-poll slave pertama kali, muncul baris seperti:
+   ```
+   [SEC] Slave 1 UID = 0x0000000000000000000000AB
+   [SEC] Slave 4 UID = 0x33310c4737353230003f0049
+   ```
+3. Copy nilai `0x...` (24 karakter hex) untuk tiap slave.
+
+### B.2 Daftarkan di Remix
+
+1. Di Remix → panel **Deployed Contracts** → cari fungsi **`addDevice`**.
+2. Klik tanda **˅** untuk membuka dua kolom input.
+3. Isi:
+   - kolom **slaveId** = `1`
+   - kolom **uid** = `0x0000000000000000000000AB` (UID slave 1 dari B.1)
+4. Klik **transact**. Ulangi untuk slave 4:
+   ```
+   addDevice(4, 0x33310c4737353230003f0049)
+   ```
+
+### B.3 Verifikasi pendaftaran
+
+1. Di Remix, klik fungsi **`whitelist`** → isi `1` → **call** → harus `true`.
+2. Klik **`verifyDevice`** (versi `uint8`) → isi `1` → **call** → harus `0:bool: true`.
+3. Di serial ESP32, muncul:
+   ```
+   [BC] verifyDevice(1, UID) → OK
+   [SEC] identitas slave 1 terverifikasi (UID cocok)
+   ```
+
+> Slave yang **belum** didaftarkan akan memicu anomali `IDENTITY` (jenis 5) saat kontak pertama, lalu `ROGUE_ID` pada pengecekan whitelist tiap poll. Itu memang perilaku yang benar.
+
+---
+
+## C. Mulai Monitor Serial
+
+Tujuan bab ini: merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu menatap layar.
+
+1. Pastikan `platformio.ini` punya baris `monitor_filters = log2file` (sudah ada di repo).
+2. Jalankan monitor:
+   ```powershell
+   %USERPROFILE%\.platformio\penv\Scripts\pio device monitor -e esp32dev
+   ```
+3. Seluruh output **otomatis tersimpan** ke `.pio/build/esp32dev/monitor-<tanggal>.log`.
+4. Tanda koneksi sehat di serial:
+   - `[BC] BlockchainClient siap, RPC: http://...`
+   - `[BC] verifyDevice(N, UID) → OK`
+   - `[SEC] identitas slave N terverifikasi (UID cocok)`
+
+> Kalau muncul `[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU`: cek IP Ganache di `config.h`, pastikan Ganache jalan di port 7545, dan firewall tidak memblokir.
+
+> 💡 Untuk tiap skenario di Bab D, **catat nama file `.log`** yang aktif saat itu — file ini yang akan di-parse di Bab E.
+
+---
+
+## D. Jalankan Skenario Pengujian
+
+Tujuan bab ini: membangkitkan tiap jenis anomali secara terkendali, satu skenario satu sesi.
+
+**Persiapan attacker (sekali):** di PC attacker, install pyserial dan cek COM port USB-RS485 di Device Manager (mis. `COM7`). Jangan tertukar dengan port ESP32.
 ```powershell
 pip install pyserial
 ```
 
-`<COM_ATTACKER>` adalah port USB-RS485 yang dipakai PC attacker (placeholder — cek di
-Device Manager, mis. `COM7`). Jangan tertukar dengan port ESP32 gateway.
-
-```powershell
-python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
-python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop   --base 1000
-python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode jump   --base 1000
-```
-
-Opsi:
-
-| Opsi | Arti |
-|---|---|
-| `--port` | COM port RS485 attacker (placeholder, sesuaikan) |
-| `--id` | ID slave yang dipalsukan (mis. `2`) |
-| `--mode normal` | Forward pulse monoton naik → **lolos** deteksi nilai (uji evasif) |
-| `--mode drop` | Forward pulse turun → memicu anomali `VALUE_RANGE` |
-| `--mode jump` | Lonjakan pulse besar → memicu anomali `VALUE_RANGE` (delta > batas) |
-| `--base` | Nilai forward pulse awal |
-| `--uid 0x<UID>` | Jawab register UID `0x000D` dengan UID tertentu (uji evasif identitas) |
-
-**Uji evasif identitas:** untuk meniru slave sah, tambahkan UID asli yang sudah
-didaftarkan di kontrak:
-
-```powershell
-python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000 --uid 0x0000000000000000000000AB
-```
-
-Tanpa `--uid` (default semua nol), slave palsu akan gagal verifikasi identitas dan
-memicu anomali `IDENTITY`.
-
-### D.2 Skenario C — Perangkat hilang (tanpa attacker script)
-
-Skenario ini tidak memerlukan attacker script. Langkahnya adalah aksi fisik:
-
-1. Pastikan slave yang akan diuji (mis. slave 1 atau 4) sudah pernah
-   merespons setidaknya sekali — ESP32 harus sudah menandainya sebagai
-   `wasPresent = true`.
-2. **Cabut kabel RS485** slave tersebut (atau matikan slave).
-3. Amati serial monitor ESP32:
-```
-[SEC] >>> ANOMALI @t=...ms | slave=1 | jenis=DEVICE_LOST [BC] anomaly committed @t=...ms | HTTP 200
-```
-4. Catat timestamp deteksi dan commit untuk mengukur response time.
-5. **Colok kembali** kabel → slave pulih → polling normal lanjut.
-6. Ulangi sesuai jumlah trial yang direncanakan.
-
-### D.3 Skenario E — Operasi normal (ukur false positive rate)
-
-Skenario ini berjalan **tanpa attacker** dan tanpa gangguan fisik apapun.
-
-1. Pastikan slave 1 dan 4 terhubung dan terdaftar (whitelist + UID).
-2. Biarkan sistem berjalan normal selama minimal **30 menit** (atau N siklus
-   polling yang direncanakan).
-3. Amati serial monitor — **tidak boleh ada** baris `[SEC] >>> ANOMALI`
-   selama durasi ini.
-4. Setiap anomali yang muncul tanpa serangan dicatat sebagai **FP**
-   (false positive) di `hasil_pengujian.csv`.
-5. Jalankan `export_anomali.py` setelah selesai untuk mengekspor log.
-
-> FPR = FP / (FP + TN). Target ideal: FPR = 0% (tidak ada alarm palsu
-> saat sistem beroperasi normal).
-
----
-
-## E. Menjalankan Data Logger (export anomali → CSV)
-
-Skrip ada di `tools/logger/export_anomali.py`. Jalankan setelah
-pengujian untuk mengekspor seluruh log anomali dari blockchain ke Excel.
-
-### E.1 Instalasi (sekali saja)
-
-    pip install web3
-
-### E.2 Konfigurasi (sudah terisi — cek saja)
-
-Buka `tools/logger/export_anomali.py`, pastikan dua baris ini sesuai:
-
-    RPC      = "http://192.168.0.100:7545"
-    CONTRACT = "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"
-
-Jika IP PC berubah, update RPC agar sama dengan BLOCKCHAIN_RPC_URL
-di src/config.h. CONTRACT tidak berubah selama workspace Ganache sama.
-
-### E.3 Jalankan
-
-    cd C:\Users\falhaq\Documents\GitHub\ESP32-Modbus-Security
-    python tools/logger/export_anomali.py
-
-Output yang diharapkan:
-    N anomali diekspor -> anomali_log.csv (buka di Excel)
-
-Jika muncul [ERROR] Tidak dapat terhubung ke Ganache — pastikan
-Ganache berjalan dan workspace tersimpan sudah dibuka.
-
-### E.4 Buka hasil di Excel
-
-File anomali_log.csv muncul di folder root repo. Kolom:
-- no        : Nomor urut
-- waktu     : Tanggal & jam nyata dari block.timestamp
-- block     : Nomor blok Ganache
-- slaveId   : ID slave yang memicu anomali
-- jenis     : Nama jenis anomali (ROGUE_ID, VALUE_RANGE, DEVICE_LOST, IDENTITY)
-- detail    : Pesan detail dari firmware
-- txHash    : Hash transaksi — bukti immutability di blockchain
-
-File ini adalah bukti audit immutable untuk Bab IV skripsi.
-Simpan salinannya setelah tiap sesi pengujian sebelum data bertambah.
-
-### E.5 Olah Data Otomatis (pipeline setelah pengujian)
-
-Pipeline tiga langkah — dari log serial ke metrik akhir:
-
-**Langkah 1 — Log serial** (otomatis, tidak perlu tindakan manual)
-
-Log sudah tersimpan otomatis ke `.pio/build/esp32dev/monitor-*.log`
-berkat `monitor_filters = log2file` di `platformio.ini`.
-
-**Langkah 2 — Parse log → CSV**
-
-    python tools/logger/parse_serial.py \
-        --log <path_ke_.log> \
-        --scenario <LABEL> \
-        --target <slave_id> \
-        --expected <JENIS> \
-        --trials <N>
-
-Pemetaan skenario → jenis anomali yang diharapkan:
-
-| Skenario | Label | `--expected` |
+| Skenario | Tujuan | Jenis diharapkan |
 |---|---|---|
-| A — ROGUE ID | `A` | `ROGUE_ID` |
-| B — Value Range | `B` | `VALUE_RANGE` |
-| C — Device Lost | `C` | `DEVICE_LOST` |
-| D — Evasif (normal palsu) | `D` | `NONE` |
-| E — Normal / FPR | `E` | `NONE` |
-| Subbab — Identity | `SUB` | `IDENTITY` |
+| D.1 — A | Spoofing ID yang dicabut whitelist | ROGUE_ID |
+| D.2 — B | Nilai forward tidak plausibel | VALUE_RANGE |
+| D.3 — C | Perangkat sah hilang | DEVICE_LOST |
+| D.4 — D | Peniruan sempurna (evasif) | NONE (FN by design) |
+| D.5 — E | Operasi normal | NONE (ukur FPR) |
+| D.6 — SUB | Substitusi identitas (UID salah) | IDENTITY |
 
-Menghasilkan dua file:
-- `confusion.csv` — satu baris per trial (kolom `sel` = TP/FP/FN/TN)
-- `response_times.csv` — timing deteksi & commit per event (ms)
+### D.1 Skenario A — Spoofing ID dicabut whitelist
 
-**Langkah 3 — Hitung metrik**
+1. Di Remix, panggil **`removeDevice`** → isi `2` → **transact** (cabut otorisasi slave 2).
+2. Verifikasi: `whitelist(2)` → **call** → harus `false`.
+3. Di PC attacker, jalankan:
+   ```powershell
+   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
+   ```
+4. Biarkan berjalan untuk jumlah trial yang direncanakan (mis. 30 siklus polling).
+5. Di serial ESP32, harap muncul `[SEC] >>> ANOMALI ... jenis=ROGUE_ID`.
+6. Hentikan attacker (`Ctrl + C`). Catat nama file `.log`.
 
-    python tools/logger/hitung_metrik.py
+### D.2 Skenario B — Nilai tidak plausibel
 
-Mencetak confusion matrix lengkap, DR/FPR/Precision/Accuracy/F1,
-dan response time (mean ± SD, min, max).
+1. Daftarkan dulu slave 2 agar lolos identitas: `addDevice(2, <UID slave 2 dari serial>)`.
+2. Jalankan attacker mode `drop`:
+   ```powershell
+   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop --base 1000
+   ```
+3. Harap muncul `[SEC] >>> ANOMALI ... jenis=VALUE_RANGE` (forward pulse turun).
+4. Hentikan attacker. Catat file `.log`.
+
+### D.3 Skenario C — Perangkat hilang
+
+1. Pastikan slave 1 sudah pernah merespons (ESP32 menandainya `wasPresent`).
+2. **Cabut kabel RS485** slave 1 (atau matikan slave).
+3. Harap muncul `[SEC] >>> ANOMALI ... jenis=DEVICE_LOST`.
+4. **Colok kembali** kabel → slave pulih → polling normal lanjut.
+5. Catat file `.log`.
+
+### D.4 Skenario D — Peniruan sempurna (evasif)
+
+1. Pastikan slave 2 terdaftar dengan UID asli.
+2. Jalankan attacker meniru UID asli:
+   ```powershell
+   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000 --uid 0x<UID asli slave 2>
+   ```
+3. Harap **TIDAK ada** anomali — attacker berhasil menyamar.
+4. Ini **False Negative by design** → bukti batas sistem → autentikasi kripto = future work. Catat file `.log`.
+
+### D.5 Skenario E — Operasi normal (FPR)
+
+1. Pastikan slave 1 dan 4 terhubung, terdaftar, **tidak ada attacker**.
+2. Biarkan sistem berjalan normal minimal **30 menit** (atau N siklus polling).
+3. Harap **TIDAK ada** baris `[SEC] >>> ANOMALI` sama sekali.
+4. Bila ada anomali muncul, itu **False Positive**. Catat file `.log`.
+
+### D.6 Skenario SUB — Substitusi identitas
+
+1. Pastikan slave 2 terdaftar dengan UID asli.
+2. Jalankan attacker **tanpa** `--uid` (UID default semua nol):
+   ```powershell
+   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
+   ```
+3. Harap muncul `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok).
+4. Hentikan attacker. Catat file `.log`.
 
 ---
 
-## F. Skenario Pengujian (langkah per langkah)
+## E. Olah Data Otomatis
 
-Setiap skenario: jalankan ESP32 + Ganache, monitor serial otomatis tersimpan ke `.log`
-(berkat `monitor_filters = log2file`). Setelah selesai, parse log-nya — tidak perlu
-menatap serial real-time.
+Tujuan bab ini: mengubah file `.log` menjadi confusion matrix + metrik, otomatis tanpa hitung manual.
 
-### Persiapan (sekali, sebelum semua skenario)
-
-1. Ganache hidup, Remix tersambung (compile sol → Add Contract).
-2. `addDevice(1, 0x<UID slave 1>)` dan `addDevice(4, 0x<UID slave 4>)` — slave sah.
-3. Mulai monitor: `pio device monitor -e esp32dev` (log otomatis ke `.pio/build/esp32dev/monitor-*.log`).
-
-### Tabel skenario
-
-| Skenario | Tujuan | Setup | Perintah attacker | Jenis diharapkan |
-|---|---|---|---|---|
-| A | Spoofing ID dicabut | `removeDevice(2)` di Remix | `--id 2 --mode normal` | ROGUE_ID |
-| B | Nilai tidak plausibel | `addDevice(2, uid)` dulu | `--id 2 --mode drop` | VALUE_RANGE |
-| C | Perangkat hilang | — | cabut kabel slave 1 fisik | DEVICE_LOST |
-| D | Evasif sempurna | `addDevice(2, uid)` + UID asli | `--id 2 --mode normal --uid 0x<UID asli>` | NONE (FN by design) |
-| E | Operasi normal (FPR) | semua slave sah terdaftar | tidak ada attacker, jalankan ≥30 menit | NONE (TN) |
-| SUB | Substitusi identitas | `addDevice(2, uid)` dulu | `--id 2 --mode normal` (tanpa --uid) | IDENTITY |
-
-### Langkah tiap skenario
-
-1. Lakukan setup di kolom "Setup".
-2. Jalankan attacker sesuai kolom "Perintah" (kecuali C dan E).
-3. Biarkan berjalan untuk jumlah trial yang direncanakan (mis. 30 siklus polling).
-4. Hentikan attacker / kembalikan kondisi (mis. `addDevice(2,uid)` lagi setelah A).
-5. Hentikan monitor → catat path file `.log`-nya.
-
-### Olah data otomatis
-
-Setelah semua skenario selesai, parse tiap log:
+### E.1 Parse tiap log (sekali per skenario)
 
 ```powershell
 python tools/logger/parse_serial.py --log <log_A> --scenario A   --target 2 --expected ROGUE_ID
@@ -360,56 +230,58 @@ python tools/logger/parse_serial.py --log <log_E> --scenario E   --target 0 --ex
 python tools/logger/parse_serial.py --log <log_S> --scenario SUB --target 2 --expected IDENTITY
 ```
 
-Lalu hitung metrik final:
+Tiap perintah menambah satu baris ke `confusion.csv` dan mengisi `response_times.csv`.
+
+### E.2 Hitung metrik final
 
 ```powershell
 python tools/logger/hitung_metrik.py
 ```
 
-Menghasilkan confusion matrix + Detection Rate / FPR / Precision / Accuracy / F1-score
-+ response time (mean ± SD) — semua otomatis, untuk Tabel di Bab IV.
+Menghasilkan confusion matrix + Detection Rate / FPR / Precision / Accuracy / F1-score + response time (mean ± SD) — angka untuk Tabel di Bab IV.
 
-> Setiap `parse_serial.py` menambah satu baris ke `confusion.csv`. Untuk mengulang dari
-> awal, hapus `confusion.csv` dan `response_times.csv` lalu parse ulang.
+### E.3 Ekspor log audit blockchain
 
----
-
-## Alur Uji Singkat (end-to-end)
-
-1. **At Address** (kontrak lama, lihat bagian A) **atau Deploy** (kontrak baru, bagian B).
-2. Set `CONTRACT_ADDRESS` (dan `BLOCKCHAIN_RPC_URL` bila IP berubah) di `src/config.h`.
-3. **Reflash** ESP32:
-   `%USERPROFILE%\.platformio\penv\Scripts\pio run -e esp32dev --target upload`
-4. **Baca UID** dari serial monitor — cari baris `[SEC] Slave N UID = 0x...`.
-5. **`addDevice(id, uid)`** di Remix untuk tiap slave sah (DUA argumen).
-6. **Jalankan attacker** pada slave target (bagian D) untuk membangkitkan anomali.
-7. **Rekam serial** (otomatis tersimpan ke file `.log`, lihat bagian Serial di bawah)
-   **+ export CSV** (`python tools/logger/export_anomali.py`).
-
-### Verifikasi koneksi & log serial
-
-Pantau output ESP32:
 ```powershell
-%USERPROFILE%\.platformio\penv\Scripts\pio device monitor -e esp32dev
+python tools/logger/export_anomali.py
 ```
 
-Berkat `monitor_filters = log2file` di `platformio.ini`, semua output serial **otomatis
-tersimpan** ke `.pio/build/esp32dev/monitor-*.log` (tanpa perlu screenshot panjang).
+Menghasilkan `anomali_log.csv` (waktu nyata, jenis, detail, txHash) — bukti audit immutable untuk lampiran Bab IV.
 
-Tanda koneksi sehat:
-- `[BC] BlockchainClient siap, RPC: http://...`
-- `[BC] verifyDevice(N) → OK` / `[BC] verifyDevice(N, UID) → OK`
-- `[SEC] identitas slave N terverifikasi (UID cocok)`
-
-Jika muncul `[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU` atau `Connection refused`: periksa
-IP Ganache di `config.h`, pastikan Ganache jalan di port 7545, dan firewall tidak
-memblokir port tersebut.
+> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi E.1.
 
 ---
 
-## Data yang Ditangkap per Slave
+## F. Pemulihan Setelah Mati Daya / Restart
 
-Tiap slave AGNIKA menyumbang lima data berikut ke gateway tiap polling:
+Buka bab ini **hanya** kalau PC mati atau restart. Tidak perlu deploy ulang maupun `addDevice` ulang.
+
+| Komponen | Langkah | Hasil |
+|---|---|---|
+| **Ganache** | Buka workspace tersimpan yang sama | Chain, kontrak, whitelist kembali — `CONTRACT_ADDRESS` tetap |
+| **Remix** | Compile sol (EVM `paris`) → Deployed Contracts → **+ Add Contract** + tempel `CONTRACT_ADDRESS` | State (whitelist + UID) muncul kembali tanpa Deploy |
+| **ESP32** | Nyalakan (tidak perlu apa-apa) | Auto re-baseline; UID diverifikasi ulang saat kontak pertama |
+
+**Langkah Remix detail:**
+1. Buka Remix → tab **Solidity Compiler** → set EVM `paris` → **Compile** (tombol At Address baru muncul setelah compile).
+2. Tab **Deploy & Run** → Environment **Custom - External Http Provider** → `http://127.0.0.1:7545`.
+3. Panel **Deployed Contracts** → klik **+ Add Contract** → tempel `CONTRACT_ADDRESS` lama → konfirmasi.
+4. **Jangan klik Deploy** (oranye) — itu membuat kontrak baru dengan state kosong.
+
+| Kondisi | Yang perlu dilakukan |
+|---|---|
+| IP PC tidak berubah | Langsung Add Contract, selesai |
+| IP PC berubah | Update `BLOCKCHAIN_RPC_URL` di `config.h` → flash ulang |
+
+> Sensor AGNIKA menyimpan totalizer di memori non-volatile — nilai forward/backward/accumulative **lanjut dari posisi terakhir**, bukan dari nol.
+
+**Ringkas:** buka workspace Ganache → Compile + Add Contract di Remix → nyalakan ESP32. Selesai.
+
+---
+
+## Lampiran: Referensi
+
+### Data yang ditangkap per slave
 
 | Data | Sumber register | Peran |
 |---|---|---|
@@ -419,13 +291,28 @@ Tiap slave AGNIKA menyumbang lima data berikut ke gateway tiap polling:
 | `backward` | uint32 @`0x0002`–`0x0003` (LSW dulu) | Data proses pendukung (turut tercatat) |
 | `accumulative` | dihitung: `forward − backward` | Data proses pendukung (turut tercatat) |
 
-**Deteksi keamanan berfokus pada dua hal:**
+Deteksi keamanan berfokus pada **identitas** (`id` + `uid`) dan **integritas nilai** (`forward` monoton). `backward` dan `accumulative` bukan dasar penolakan — hanya direkam sebagai data pendukung.
 
-- **IDENTITAS** — kombinasi `id` + `uid`. Slave yang `id`/`uid`-nya tidak cocok dengan
-  kontrak memicu anomali `IDENTITY` (kontak pertama / reconnect) lalu `ROGUE_ID/WHITELIST`
-  pada pengecekan whitelist per-poll.
-- **INTEGRITAS NILAI** — `forward` (totalizer) harus **monoton naik**. Nilai turun →
-  anomali `VALUE_RANGE`; lonjakan melebihi `MAX_PULSE_DELTA` → anomali `VALUE_RANGE`.
+### Opsi attacker
 
-`backward` dan `accumulative` **bukan** dasar penolakan keamanan — keduanya direkam
-sebagai **data proses pendukung** untuk analisis/laporan, bukan untuk deteksi anomali.
+| Opsi | Arti |
+|---|---|
+| `--port` | COM port RS485 attacker |
+| `--id` | ID slave yang dipalsukan |
+| `--mode normal` | Forward pulse monoton naik → lolos deteksi nilai |
+| `--mode drop` | Forward pulse turun → memicu `VALUE_RANGE` |
+| `--mode jump` | Lonjakan pulse besar → memicu `VALUE_RANGE` |
+| `--base` | Nilai forward pulse awal |
+| `--uid 0x<UID>` | Jawab register UID `0x000D` dengan UID tertentu (uji evasif) |
+
+### Jenis anomali
+
+| Tipe | Nama | Pemicu |
+|---|---|---|
+| 1 | ROGUE_ID | ID tidak ada di whitelist blockchain |
+| 2 | TIMING | Respons di luar window 600 ms |
+| 3 | VALUE_RANGE | Forward pulse turun atau delta > 1000 |
+| 4 | DEVICE_LOST | Slave pernah hadir, kini tidak merespons |
+| 5 | IDENTITY | UID tidak cocok atau belum terdaftar on-chain |
+
+> Definisi sistem yang terkunci ada di [LOCKED_DEFINITION.md](LOCKED_DEFINITION.md).
