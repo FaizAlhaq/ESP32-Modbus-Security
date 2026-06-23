@@ -274,6 +274,46 @@ File anomali_log.csv muncul di folder root repo. Kolom:
 File ini adalah bukti audit immutable untuk Bab IV skripsi.
 Simpan salinannya setelah tiap sesi pengujian sebelum data bertambah.
 
+### E.5 Olah Data Otomatis (pipeline setelah pengujian)
+
+Pipeline tiga langkah — dari log serial ke metrik akhir:
+
+**Langkah 1 — Log serial** (otomatis, tidak perlu tindakan manual)
+
+Log sudah tersimpan otomatis ke `.pio/build/esp32dev/monitor-*.log`
+berkat `monitor_filters = log2file` di `platformio.ini`.
+
+**Langkah 2 — Parse log → CSV**
+
+    python tools/logger/parse_serial.py \
+        --log <path_ke_.log> \
+        --scenario <LABEL> \
+        --target <slave_id> \
+        --expected <JENIS> \
+        --trials <N>
+
+Pemetaan skenario → jenis anomali yang diharapkan:
+
+| Skenario | Label | `--expected` |
+|---|---|---|
+| A — ROGUE ID | `A` | `ROGUE_ID` |
+| B — Value Range | `B` | `VALUE_RANGE` |
+| C — Device Lost | `C` | `DEVICE_LOST` |
+| D — Evasif (normal palsu) | `D` | `NONE` |
+| E — Normal / FPR | `E` | `NONE` |
+| Subbab — Identity | `SUB` | `IDENTITY` |
+
+Menghasilkan dua file:
+- `confusion.csv` — satu baris per trial (kolom `sel` = TP/FP/FN/TN)
+- `response_times.csv` — timing deteksi & commit per event (ms)
+
+**Langkah 3 — Hitung metrik**
+
+    python tools/logger/hitung_metrik.py
+
+Mencetak confusion matrix lengkap, DR/FPR/Precision/Accuracy/F1,
+dan response time (mean ± SD, min, max).
+
 ---
 
 ## Alur Uji Singkat (end-to-end)

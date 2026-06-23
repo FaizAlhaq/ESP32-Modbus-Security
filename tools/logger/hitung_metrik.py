@@ -1,179 +1,144 @@
 #!/usr/bin/env python3
-# ============================================================
-#  hitung_metrik.py — Hitung metrik kinerja deteksi keamanan
-#
-#  Membaca hasil_pengujian.csv (satu baris = satu trial) lalu:
-#    - tally kolom "Sel" yang berisi label TP / FP / FN / TN
-#    - susun confusion matrix
-#    - hitung Detection Rate (Recall), FPR, Precision, Accuracy, F1
-#    - hitung response time: mean & standard deviation (kolom "response(ms)")
-#
-#  Pemakaian:
-#    python tools/logger/hitung_metrik.py [hasil_pengujian.csv]
-#
-#  Tidak butuh dependensi eksternal (cukup Python 3 standar:
-#  modul csv + statistics).
-# ============================================================
+"""
+hitung_metrik.py — Hitung confusion matrix + metrik kinerja deteksi keamanan
+
+Input (dibuat otomatis oleh parse_serial.py):
+  confusion.csv       — kolom: trial, scenario, target, expected, detected, sel
+  response_times.csv  — kolom: trial, t_deteksi_ms, t_catat_ms, response_ms
+
+Pemakaian:
+  python tools/logger/hitung_metrik.py
+  python tools/logger/hitung_metrik.py --confusion path/confusion.csv --rt path/response_times.csv
+
+Tidak butuh dependensi eksternal (cukup Python 3 standar: csv + statistics).
+"""
 
 import sys
 import csv
 import statistics
-
-# Definisi singkat tiap label confusion matrix (untuk dicetak di laporan)
-LABEL_INFO = {
-    "TP": "True Positive  - anomali nyata, terdeteksi",
-    "FP": "False Positive - normal, tetapi ditandai anomali",
-    "FN": "False Negative - anomali nyata, lolos (tidak terdeteksi)",
-    "TN": "True Negative  - normal, benar tidak ditandai",
-}
+import argparse
+from pathlib import Path
 
 
-def normalize(s: str) -> str:
-    """Lowercase + buang spasi, agar pencocokan header tahan variasi."""
-    return "".join((s or "").lower().split())
-
-
-def sniff_reader(path):
-    """Buka CSV, deteksi delimiter (',' atau ';'), kembalikan DictReader + handle file."""
-    f = open(path, "r", newline="", encoding="utf-8-sig")
-    sample = f.read(4096)
-    f.seek(0)
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t")
-        delim = dialect.delimiter
-    except csv.Error:
-        # Fallback: pilih yang paling sering muncul di baris pertama
-        head = sample.splitlines()[0] if sample else ""
-        delim = ";" if head.count(";") > head.count(",") else ","
-    return csv.DictReader(f, delimiter=delim), f, delim
-
-
-def find_column(fieldnames, *candidates_contains):
-    """Cari nama kolom yang (setelah normalize) mengandung salah satu kata kunci."""
-    norm_map = {normalize(fn): fn for fn in fieldnames}
-    # 1) cocok persis dulu
-    for cand in candidates_contains:
-        if cand in norm_map:
-            return norm_map[cand]
-    # 2) cocok sebagian (substring)
-    for cand in candidates_contains:
-        for norm, original in norm_map.items():
-            if cand in norm:
-                return original
-    return None
+def read_csv(path: Path):
+    with open(path, 'r', newline='', encoding='utf-8-sig') as f:
+        return list(csv.DictReader(f))
 
 
 def pct(x):
-    return "n/a" if x is None else f"{x * 100:.2f}%"
+    return 'n/a' if x is None else f'{x * 100:.2f}%'
+
+
+def safe_div(a, b):
+    return (a / b) if b else None
 
 
 def main():
-    path = sys.argv[1] if len(sys.argv) > 1 else "hasil_pengujian.csv"
+    ap = argparse.ArgumentParser(
+        description='Hitung metrik dari confusion.csv + response_times.csv'
+    )
+    ap.add_argument('--confusion', default='confusion.csv',
+                    help='Path ke confusion.csv (default: confusion.csv)')
+    ap.add_argument('--rt',        default='response_times.csv',
+                    help='Path ke response_times.csv (default: response_times.csv)')
+    args = ap.parse_args()
 
-    try:
-        reader, fh, delim = sniff_reader(path)
-    except FileNotFoundError:
-        print(f"[ERROR] File tidak ditemukan: {path}")
-        print("        Letakkan hasil_pengujian.csv di folder kerja, atau berikan path:")
-        print("        python tools/logger/hitung_metrik.py <path_ke_csv>")
+    conf_path = Path(args.confusion)
+    rt_path   = Path(args.rt)
+
+    # ── Baca confusion.csv ─────────────────────────────────────────────
+    if not conf_path.exists():
+        print(f'[ERROR] File tidak ditemukan: {conf_path}')
+        print('        Jalankan parse_serial.py terlebih dahulu untuk membuat file ini.')
+        print('        Contoh:')
+        print('          python tools/logger/parse_serial.py \\')
+        print('              --log <monitor.log> --scenario A --target 2 \\')
+        print('              --expected ROGUE_ID --trials 10')
         sys.exit(1)
 
-    fieldnames = reader.fieldnames or []
-    sel_col = find_column(fieldnames, "sel")
-    resp_col = find_column(fieldnames, "response(ms)", "responsems", "response", "respon")
-
-    if sel_col is None:
-        print(f"[ERROR] Kolom 'Sel' tidak ditemukan. Header terbaca: {fieldnames}")
-        fh.close()
-        sys.exit(1)
-
-    counts = {"TP": 0, "FP": 0, "FN": 0, "TN": 0}
-    response_ms = []
-    n_rows = 0
-    unknown_labels = {}
-
-    for row in reader:
-        n_rows += 1
-        label = (row.get(sel_col) or "").strip().upper()
-        if label in counts:
-            counts[label] += 1
-        elif label == "":
-            unknown_labels["(kosong)"] = unknown_labels.get("(kosong)", 0) + 1
+    rows = read_csv(conf_path)
+    counts = {'TP': 0, 'FP': 0, 'FN': 0, 'TN': 0}
+    unknown = {}
+    for row in rows:
+        sel = (row.get('sel') or '').strip().upper()
+        if sel in counts:
+            counts[sel] += 1
         else:
-            unknown_labels[label] = unknown_labels.get(label, 0) + 1
+            unknown[sel] = unknown.get(sel, 0) + 1
 
-        if resp_col is not None:
-            raw = (row.get(resp_col) or "").strip().replace(",", ".")
+    TP, FP, FN, TN = counts['TP'], counts['FP'], counts['FN'], counts['TN']
+    total = TP + FP + FN + TN
+
+    dr        = safe_div(TP, TP + FN)
+    fpr       = safe_div(FP, FP + TN)
+    precision = safe_div(TP, TP + FP)
+    accuracy  = safe_div(TP + TN, total)
+    f1 = (2 * precision * dr / (precision + dr)
+          if precision and dr and (precision + dr) > 0 else None)
+
+    # ── Baca response_times.csv ───────────────────────────────────────
+    response_ms = []
+    rt_warn = None
+    if rt_path.exists():
+        for row in read_csv(rt_path):
+            raw = (row.get('response_ms') or '').strip().replace(',', '.')
             if raw:
                 try:
                     response_ms.append(float(raw))
                 except ValueError:
                     pass
-
-    fh.close()
-
-    TP, FP, FN, TN = counts["TP"], counts["FP"], counts["FN"], counts["TN"]
-    total = TP + FP + FN + TN
-
-    def safe_div(a, b):
-        return (a / b) if b else None
-
-    detection_rate = safe_div(TP, TP + FN)          # Recall / Sensitivity / TPR
-    fpr            = safe_div(FP, FP + TN)           # False Positive Rate
-    precision      = safe_div(TP, TP + FP)           # Positive Predictive Value
-    accuracy       = safe_div(TP + TN, total)
-    if precision and detection_rate and (precision + detection_rate) > 0:
-        f1 = 2 * precision * detection_rate / (precision + detection_rate)
     else:
-        f1 = None
+        rt_warn = f'[WARN] {rt_path} tidak ditemukan — statistik response time dilewati.'
 
-    # ---- Cetak laporan ----
-    print("=" * 60)
-    print(" HITUNG METRIK - Deteksi Keamanan Modbus")
-    print("=" * 60)
-    print(f" Sumber data : {path}  (delimiter '{delim}')")
-    print(f" Total baris : {n_rows}  | trial valid (TP/FP/FN/TN): {total}")
-    if unknown_labels:
-        print(f" Label 'Sel' tidak dikenal (diabaikan): {unknown_labels}")
+    # ── Cetak laporan ─────────────────────────────────────────────────
+    print('=' * 60)
+    print(' METRIK KINERJA — Deteksi Keamanan Modbus')
+    print('=' * 60)
+    print(f' confusion      : {conf_path}')
+    print(f' response times : {rt_path}')
+    print(f' Total trial    : {total}')
+    if unknown:
+        print(f' Label tidak dikenal (dilewati): {unknown}')
     print()
 
-    print(" Confusion Matrix")
-    print(" " + "-" * 40)
-    for k in ("TP", "FP", "FN", "TN"):
-        print(f"   {k} = {counts[k]:<5d}  {LABEL_INFO[k]}")
+    print(' Confusion Matrix')
+    print(' ' + '-' * 42)
+    print(f'   TP = {TP:<5d}  True Positive  — anomali nyata, terdeteksi')
+    print(f'   FP = {FP:<5d}  False Positive — normal, ditandai anomali')
+    print(f'   FN = {FN:<5d}  False Negative — anomali nyata, lolos')
+    print(f'   TN = {TN:<5d}  True Negative  — normal, benar tidak ditandai')
     print()
-    print("                 Prediksi: ANOMALI   Prediksi: NORMAL")
-    print(f"   Aktual ANOMALI     TP={TP:<6d}          FN={FN:<6d}")
-    print(f"   Aktual NORMAL      FP={FP:<6d}          TN={TN:<6d}")
-    print()
-
-    print(" Metrik")
-    print(" " + "-" * 40)
-    print(f"   Detection Rate (Recall/TPR) = {pct(detection_rate)}   [TP/(TP+FN)]")
-    print(f"   False Positive Rate (FPR)   = {pct(fpr)}   [FP/(FP+TN)]")
-    print(f"   Precision                   = {pct(precision)}   [TP/(TP+FP)]")
-    print(f"   Accuracy                    = {pct(accuracy)}   [(TP+TN)/total]")
-    print(f"   F1-Score                    = {pct(f1)}   [2PR/(P+R)]")
+    print('                  Prediksi: ANOMALI   Prediksi: NORMAL')
+    print(f'   Aktual ANOMALI     TP={TP:<6d}          FN={FN:<6d}')
+    print(f'   Aktual NORMAL      FP={FP:<6d}          TN={TN:<6d}')
     print()
 
-    print(" Response Time (ms)")
-    print(" " + "-" * 40)
-    if resp_col is None:
-        print("   Kolom 'response(ms)' tidak ditemukan — dilewati.")
+    print(' Metrik')
+    print(' ' + '-' * 42)
+    print(f'   Detection Rate (Recall/TPR) = {pct(dr)}   [TP/(TP+FN)]')
+    print(f'   False Positive Rate (FPR)   = {pct(fpr)}   [FP/(FP+TN)]')
+    print(f'   Precision                   = {pct(precision)}   [TP/(TP+FP)]')
+    print(f'   Accuracy                    = {pct(accuracy)}   [(TP+TN)/total]')
+    print(f'   F1-Score                    = {pct(f1)}   [2PR/(P+R)]')
+    print()
+
+    print(' Response Time (ms)')
+    print(' ' + '-' * 42)
+    if rt_warn:
+        print(f'   {rt_warn}')
     elif not response_ms:
-        print("   Tidak ada nilai response(ms) numerik yang terbaca.")
+        print('   Tidak ada data response time di file.')
     else:
-        n = len(response_ms)
+        n    = len(response_ms)
         mean = statistics.mean(response_ms)
-        # SD sampel (n-1, Bessel). Butuh minimal 2 data; jika 1, SD = 0.
-        sd = statistics.stdev(response_ms) if n >= 2 else 0.0
-        print(f"   n     = {n}")
-        print(f"   mean  = {mean:.2f} ms")
-        print(f"   SD    = {sd:.2f} ms   (sampel, n-1)")
-        print(f"   min   = {min(response_ms):.2f} ms")
-        print(f"   max   = {max(response_ms):.2f} ms")
-    print("=" * 60)
+        sd   = statistics.stdev(response_ms) if n >= 2 else 0.0
+        print(f'   n    = {n}')
+        print(f'   mean = {mean:.2f} ms')
+        print(f'   SD   = {sd:.2f} ms  (sampel, n-1)')
+        print(f'   min  = {min(response_ms):.2f} ms')
+        print(f'   max  = {max(response_ms):.2f} ms')
+    print('=' * 60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

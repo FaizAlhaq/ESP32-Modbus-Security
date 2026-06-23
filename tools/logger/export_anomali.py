@@ -1,7 +1,7 @@
 from web3 import Web3
 import csv, datetime
 
-RPC      = "http://192.168.0.100:7545"   # IP & port Ganache-mu
+RPC      = "http://192.168.0.104:7545"   # IP & port Ganache-mu
 CONTRACT = "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"               # alamat contract (dari Remix/Ganache)
 
 ABI = [{
