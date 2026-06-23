@@ -316,6 +316,64 @@ dan response time (mean ± SD, min, max).
 
 ---
 
+## F. Skenario Pengujian (langkah per langkah)
+
+Setiap skenario: jalankan ESP32 + Ganache, monitor serial otomatis tersimpan ke `.log`
+(berkat `monitor_filters = log2file`). Setelah selesai, parse log-nya — tidak perlu
+menatap serial real-time.
+
+### Persiapan (sekali, sebelum semua skenario)
+
+1. Ganache hidup, Remix tersambung (compile sol → Add Contract).
+2. `addDevice(1, 0x<UID slave 1>)` dan `addDevice(4, 0x<UID slave 4>)` — slave sah.
+3. Mulai monitor: `pio device monitor -e esp32dev` (log otomatis ke `.pio/build/esp32dev/monitor-*.log`).
+
+### Tabel skenario
+
+| Skenario | Tujuan | Setup | Perintah attacker | Jenis diharapkan |
+|---|---|---|---|---|
+| A | Spoofing ID dicabut | `removeDevice(2)` di Remix | `--id 2 --mode normal` | ROGUE_ID |
+| B | Nilai tidak plausibel | `addDevice(2, uid)` dulu | `--id 2 --mode drop` | VALUE_RANGE |
+| C | Perangkat hilang | — | cabut kabel slave 1 fisik | DEVICE_LOST |
+| D | Evasif sempurna | `addDevice(2, uid)` + UID asli | `--id 2 --mode normal --uid 0x<UID asli>` | NONE (FN by design) |
+| E | Operasi normal (FPR) | semua slave sah terdaftar | tidak ada attacker, jalankan ≥30 menit | NONE (TN) |
+| SUB | Substitusi identitas | `addDevice(2, uid)` dulu | `--id 2 --mode normal` (tanpa --uid) | IDENTITY |
+
+### Langkah tiap skenario
+
+1. Lakukan setup di kolom "Setup".
+2. Jalankan attacker sesuai kolom "Perintah" (kecuali C dan E).
+3. Biarkan berjalan untuk jumlah trial yang direncanakan (mis. 30 siklus polling).
+4. Hentikan attacker / kembalikan kondisi (mis. `addDevice(2,uid)` lagi setelah A).
+5. Hentikan monitor → catat path file `.log`-nya.
+
+### Olah data otomatis
+
+Setelah semua skenario selesai, parse tiap log:
+
+```powershell
+python tools/logger/parse_serial.py --log <log_A> --scenario A   --target 2 --expected ROGUE_ID
+python tools/logger/parse_serial.py --log <log_B> --scenario B   --target 2 --expected VALUE_RANGE
+python tools/logger/parse_serial.py --log <log_C> --scenario C   --target 1 --expected DEVICE_LOST
+python tools/logger/parse_serial.py --log <log_D> --scenario D   --target 2 --expected NONE
+python tools/logger/parse_serial.py --log <log_E> --scenario E   --target 0 --expected NONE
+python tools/logger/parse_serial.py --log <log_S> --scenario SUB --target 2 --expected IDENTITY
+```
+
+Lalu hitung metrik final:
+
+```powershell
+python tools/logger/hitung_metrik.py
+```
+
+Menghasilkan confusion matrix + Detection Rate / FPR / Precision / Accuracy / F1-score
++ response time (mean ± SD) — semua otomatis, untuk Tabel di Bab IV.
+
+> Setiap `parse_serial.py` menambah satu baris ke `confusion.csv`. Untuk mengulang dari
+> awal, hapus `confusion.csv` dan `response_times.csv` lalu parse ulang.
+
+---
+
 ## Alur Uji Singkat (end-to-end)
 
 1. **At Address** (kontrak lama, lihat bagian A) **atau Deploy** (kontrak baru, bagian B).

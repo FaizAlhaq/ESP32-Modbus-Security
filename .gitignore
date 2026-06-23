@@ -1,6 +1,9 @@
 # PlatformIO build artifacts
 .pio/
 
+# Serial monitor capture logs (data uji mentah, regenerasi tiap pengujian)
+logs/
+
 # Solidity compiled artifacts (auto-generated dari ModbusSecurity.sol)
 contracts/artifacts/
 
