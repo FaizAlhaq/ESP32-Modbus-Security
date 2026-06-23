@@ -1,6 +1,6 @@
 # Panduan Deployment — ESP32 Modbus Security Gateway
 
-> Buka workspace Ganache → At Address di Remix → nyalakan ESP32.
+> Buka workspace Ganache → Compile sol + Add Contract di Remix → nyalakan ESP32.
 > Tidak perlu deploy ulang selama workspace sama.
 
 | Situasi | Langsung ke |
@@ -38,12 +38,17 @@ Selama membuka **workspace yang sama**, semua data tetap ada:
 
 **Cara reconnect Remix ke kontrak lama:**
 
-1. Buka `remix.ethereum.org`
-2. Tab **Deploy & Run** → Environment: **Custom - External Http Provider**
+1. Buka `remix.ethereum.org` → pastikan file `contracts/ModbusSecurity.sol` terbuka
+2. Tab **Solidity Compiler** → pilih compiler `0.8.x`
+   → ⚠️ Advanced Configuration: set **EVM Version ke `paris`** → klik **Compile**
+3. Tab **Deploy & Run** → Environment: **Custom - External Http Provider**
    → URL: `http://127.0.0.1:7545`
-3. Di bagian **At Address** (bukan tombol Deploy oranye), tempel `CONTRACT_ADDRESS`
-   → klik **At Address**
-4. Kontrak muncul di panel Deployed Contracts dengan state lengkap ✅
+4. Di panel **Deployed Contracts** → klik **`+ Add Contract`**
+   → tempel `CONTRACT_ADDRESS` yang lama → konfirmasi
+5. Kontrak muncul dengan seluruh state-nya (whitelist + UID tetap ada) ✅
+
+> ⚠️ Tombol **At Address** hanya muncul setelah compile selesai.
+> Jangan klik **Deploy** (oranye) — itu membuat kontrak baru dengan state kosong.
 
 | Kondisi | Yang perlu dilakukan |
 |---|---|
@@ -60,7 +65,7 @@ Tidak perlu deploy ulang maupun `addDevice` ulang. Ketiga komponen pulih sendiri
 | Komponen | Langkah | Hasil |
 |---|---|---|
 | **Ganache** | Buka workspace tersimpan yang sama | Chain, kontrak, whitelist kembali — `CONTRACT_ADDRESS` tetap |
-| **Remix** | At Address + tempel `CONTRACT_ADDRESS` lama | State (whitelist + UID) muncul kembali tanpa Deploy |
+| **Remix** | Compile sol (EVM paris) → Deployed Contracts → **+ Add Contract** + tempel `CONTRACT_ADDRESS` | State (whitelist + UID) muncul kembali tanpa Deploy |
 | **ESP32** | Nyalakan (tidak perlu apa-apa) | Auto re-baseline; UID diverifikasi ulang ke kontrak saat kontak pertama |
 
 > Sensor AGNIKA menyimpan totalizer di memori non-volatile — nilai
