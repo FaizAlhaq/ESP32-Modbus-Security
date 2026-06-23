@@ -205,31 +205,42 @@ pengujian untuk mengekspor seluruh log anomali dari blockchain ke Excel.
 
 ### E.1 Instalasi (sekali saja)
 
-```powershell
-pip install web3
-```
+    pip install web3
 
 ### E.2 Konfigurasi (sudah terisi — cek saja)
 
-Buka `tools/logger/export_anomali.py`, pastikan dua baris ini sesuai
-dengan setup Ganache-mu:
+Buka `tools/logger/export_anomali.py`, pastikan dua baris ini sesuai:
 
-```python
-RPC      = "http://192.168.0.100:7545"              # IP Ganache
-CONTRACT = "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"  # CONTRACT_ADDRESS
-```
+    RPC      = "http://192.168.0.100:7545"
+    CONTRACT = "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"
 
-> Jika IP PC berubah, update `RPC` agar sama dengan `BLOCKCHAIN_RPC_URL`
-> di `src/config.h`. `CONTRACT` tidak berubah selama workspace Ganache sama.
+Jika IP PC berubah, update RPC agar sama dengan BLOCKCHAIN_RPC_URL
+di src/config.h. CONTRACT tidak berubah selama workspace Ganache sama.
 
 ### E.3 Jalankan
 
-```powershell
-cd C:\Users\falhaq\Documents\GitHub\ESP32-Modbus-Security
-python tools/logger/export_anomali.py
-```
+    cd C:\Users\falhaq\Documents\GitHub\ESP32-Modbus-Security
+    python tools/logger/export_anomali.py
 
 Output yang diharapkan:
+    N anomali diekspor -> anomali_log.csv (buka di Excel)
+
+Jika muncul [ERROR] Tidak dapat terhubung ke Ganache — pastikan
+Ganache berjalan dan workspace tersimpan sudah dibuka.
+
+### E.4 Buka hasil di Excel
+
+File anomali_log.csv muncul di folder root repo. Kolom:
+- no        : Nomor urut
+- waktu     : Tanggal & jam nyata dari block.timestamp
+- block     : Nomor blok Ganache
+- slaveId   : ID slave yang memicu anomali
+- jenis     : Nama jenis anomali (ROGUE_ID, VALUE_RANGE, DEVICE_LOST, IDENTITY)
+- detail    : Pesan detail dari firmware
+- txHash    : Hash transaksi — bukti immutability di blockchain
+
+File ini adalah bukti audit immutable untuk Bab IV skripsi.
+Simpan salinannya setelah tiap sesi pengujian sebelum data bertambah.
 
 ---
 
