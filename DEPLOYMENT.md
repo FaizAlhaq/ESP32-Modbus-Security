@@ -200,31 +200,36 @@ memicu anomali `IDENTITY`.
 
 ## E. Menjalankan Data Logger (export anomali → CSV)
 
-Skrip ada di `tools/logger/export_anomali.py`. Butuh **web3**:
+Skrip ada di `tools/logger/export_anomali.py`. Jalankan setelah
+pengujian untuk mengekspor seluruh log anomali dari blockchain ke Excel.
+
+### E.1 Instalasi (sekali saja)
 
 ```powershell
 pip install web3
 ```
 
-**Sebelum dijalankan, set dua variabel di dalam file** agar menunjuk ke Ganache &
-kontrak yang benar:
+### E.2 Konfigurasi (sudah terisi — cek saja)
+
+Buka `tools/logger/export_anomali.py`, pastikan dua baris ini sesuai
+dengan setup Ganache-mu:
 
 ```python
-RPC      = "http://<IP_PC>:7545"     # samakan dengan BLOCKCHAIN_RPC_URL di config.h
-CONTRACT = "0x<CONTRACT_ADDRESS>"    # samakan dengan CONTRACT_ADDRESS di config.h (BUKAN SENDER_ADDRESS)
+RPC      = "http://192.168.0.100:7545"              # IP Ganache
+CONTRACT = "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"  # CONTRACT_ADDRESS
 ```
 
-> ⚠️ Nilai `CONTRACT` pada salinan saat ini masih placeholder dan **harus** diganti ke
-> `CONTRACT_ADDRESS` (alamat kontrak hasil deploy), bukan alamat akun pengirim.
+> Jika IP PC berubah, update `RPC` agar sama dengan `BLOCKCHAIN_RPC_URL`
+> di `src/config.h`. `CONTRACT` tidak berubah selama workspace Ganache sama.
 
-Jalankan:
+### E.3 Jalankan
 
 ```powershell
+cd C:\Users\falhaq\Documents\GitHub\ESP32-Modbus-Security
 python tools/logger/export_anomali.py
 ```
 
-Menghasilkan `anomali_log.csv` (kolom: `no, waktu, block, slaveId, jenis, detail, txHash`)
-yang bisa langsung dibuka di Excel.
+Output yang diharapkan:
 
 ---
 
