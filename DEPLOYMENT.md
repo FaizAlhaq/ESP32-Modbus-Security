@@ -196,6 +196,38 @@ python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode norm
 Tanpa `--uid` (default semua nol), slave palsu akan gagal verifikasi identitas dan
 memicu anomali `IDENTITY`.
 
+### D.2 Skenario C — Perangkat hilang (tanpa attacker script)
+
+Skenario ini tidak memerlukan attacker script. Langkahnya adalah aksi fisik:
+
+1. Pastikan slave yang akan diuji (mis. slave 1 atau 4) sudah pernah
+   merespons setidaknya sekali — ESP32 harus sudah menandainya sebagai
+   `wasPresent = true`.
+2. **Cabut kabel RS485** slave tersebut (atau matikan slave).
+3. Amati serial monitor ESP32:
+```
+[SEC] >>> ANOMALI @t=...ms | slave=1 | jenis=DEVICE_LOST [BC] anomaly committed @t=...ms | HTTP 200
+```
+4. Catat timestamp deteksi dan commit untuk mengukur response time.
+5. **Colok kembali** kabel → slave pulih → polling normal lanjut.
+6. Ulangi sesuai jumlah trial yang direncanakan.
+
+### D.3 Skenario E — Operasi normal (ukur false positive rate)
+
+Skenario ini berjalan **tanpa attacker** dan tanpa gangguan fisik apapun.
+
+1. Pastikan slave 1 dan 4 terhubung dan terdaftar (whitelist + UID).
+2. Biarkan sistem berjalan normal selama minimal **30 menit** (atau N siklus
+   polling yang direncanakan).
+3. Amati serial monitor — **tidak boleh ada** baris `[SEC] >>> ANOMALI`
+   selama durasi ini.
+4. Setiap anomali yang muncul tanpa serangan dicatat sebagai **FP**
+   (false positive) di `hasil_pengujian.csv`.
+5. Jalankan `export_anomali.py` setelah selesai untuk mengekspor log.
+
+> FPR = FP / (FP + TN). Target ideal: FPR = 0% (tidak ada alarm palsu
+> saat sistem beroperasi normal).
+
 ---
 
 ## E. Menjalankan Data Logger (export anomali → CSV)
