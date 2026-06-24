@@ -3,6 +3,12 @@
 
 # Serial monitor capture logs (data uji mentah, regenerasi tiap pengujian)
 logs/
+*.log
+
+# File output pipeline pengujian (di-generate ulang tiap sesi, jangan di-commit)
+confusion.csv
+response_times.csv
+hasil_pengujian.xlsx
 
 # Solidity compiled artifacts (auto-generated dari ModbusSecurity.sol)
 contracts/artifacts/

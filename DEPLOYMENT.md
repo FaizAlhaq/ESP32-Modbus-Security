@@ -219,7 +219,13 @@ pip install pyserial
 
 Tujuan bab ini: mengubah file `.log` menjadi confusion matrix + metrik, otomatis tanpa hitung manual.
 
-### E.1 Parse tiap log (sekali per skenario)
+### E.1 Install dependensi (sekali)
+
+```powershell
+pip install openpyxl
+```
+
+### E.2 Parse tiap log (sekali per skenario)
 
 ```powershell
 python tools/logger/parse_serial.py --log <log_A> --scenario A   --target 2 --expected ROGUE_ID
@@ -232,15 +238,15 @@ python tools/logger/parse_serial.py --log <log_S> --scenario SUB --target 2 --ex
 
 Tiap perintah menambah satu baris ke `confusion.csv` dan mengisi `response_times.csv`.
 
-### E.2 Hitung metrik final
+### E.3 Buat Excel + cetak metrik
 
 ```powershell
-python tools/logger/hitung_metrik.py
+python tools/logger/buat_excel.py
 ```
 
-Menghasilkan confusion matrix + Detection Rate / FPR / Precision / Accuracy / F1-score + response time (mean ± SD) — angka untuk Tabel di Bab IV.
+Menghasilkan `hasil_pengujian.xlsx` (sheet: **Ringkasan**, **Metrik**, **Data Mentah**) dan mencetak confusion matrix + DR / FPR / Precision / Accuracy / F1-score ke terminal — angka untuk Tabel di Bab IV.
 
-### E.3 Ekspor log audit blockchain
+### E.4 Ekspor log audit blockchain
 
 ```powershell
 python tools/logger/export_anomali.py
@@ -248,7 +254,7 @@ python tools/logger/export_anomali.py
 
 Menghasilkan `anomali_log.csv` (waktu nyata, jenis, detail, txHash) — bukti audit immutable untuk lampiran Bab IV.
 
-> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi E.1.
+> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi E.2.
 
 ---
 
