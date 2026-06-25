@@ -1,14 +1,19 @@
 # PlatformIO build artifacts
 .pio/
 
-# Serial monitor capture logs (data uji mentah, regenerasi tiap pengujian)
-logs/
+# File log pengujian (data mentah, dilampirkan di skripsi bukan di repo)
 *.log
+log_*.txt
+logs/
 
-# File output pipeline pengujian (di-generate ulang tiap sesi, jangan di-commit)
+# Output olah data (di-generate ulang dari log)
 confusion.csv
 response_times.csv
-hasil_pengujian.xlsx
+hasil_pengujian*.xlsx
+anomali_log.csv
+
+# Tally manual lama
+tools/logger/hasil_pengujian.csv
 
 # Solidity compiled artifacts (auto-generated dari ModbusSecurity.sol)
 contracts/artifacts/

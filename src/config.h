@@ -36,8 +36,8 @@
 #define MODBUS_DE_RE_PIN     4           // GPIO DE/RE MAX485
 
 // ID slave yang valid di bus (ID 1–5)
-#define SLAVE_COUNT          2
-static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
+#define SLAVE_COUNT          1
+static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1};
 
 // Register Modbus pada setiap slave — AGNIKA pulse totalizer
 // Format: uint32, LSW di alamat rendah, MSW di alamat tinggi
