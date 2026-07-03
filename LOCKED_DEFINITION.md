@@ -37,7 +37,7 @@ confusion matrix pengujian.
 
 | Aspek | Nilai |
 |---|---|
-| Slave fisik aktif | ID 1 dan ID 4 (1 lantai) |
+| Slave fisik aktif | ID 1 (referensi dasar, selalu tersambung) dan ID 2 (sensor kedua; identitas yang sama juga digunakan penyerang untuk "berbaur" pada skenario spoofing/impersonation — bukan ID asing terpisah). Keduanya sensor-only, tanpa aktuator. (1 lantai) |
 | Jaringan | WiFi (pengganti Ethernet) |
 | Blockchain | Ganache 1-node lokal (instant mining = batas bawah response time) |
 | Sniffing pasif | Di luar scope — gateway hanya evaluasi respons atas poll-nya sendiri |
