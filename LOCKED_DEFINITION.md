@@ -50,6 +50,25 @@ confusion matrix pengujian.
 - Sniffing (penyadapan pasif)
 - Peniruan sempurna (attacker kloning UID + nilai wajar)
 
+## Future Work (TERKUNCI)
+
+Pengembangan lanjutan dibatasi pada DUA arah saja:
+
+1. **Autentikasi kriptografis (HMAC / ECDSA) pada frame Modbus**
+   - Lapisan pencegahan yang menutup batas Skenario D (perfect impersonation).
+
+2. **Blockchain multi-node lokal (beberapa node pada PC)**
+   - Mewujudkan immutability terdistribusi, menggantikan Ganache node-tunggal.
+
+DI LUAR future work (JANGAN dicantumkan):
+- Topologi multi-gateway (5 lantai / 25 sensor) — terlalu jauh.
+- Fokus tetap pada penyempurnaan SATU gateway.
+
+> Alasan: multi-gateway itu kuat secara metodologis (menambah gateway tidak
+> menyentuh mekanisme yang dibuktikan: deteksi + tamper-evidence). Ia hanya
+> replikasi topologi — bukan kontribusi ilmiah. Membatasinya membuat future
+> work fokus dan bisa dipertahankan, bukan daftar keinginan.
+
 ## Prosedur Jika Ada Perubahan
 
 Setiap perubahan yang menyentuh isi file ini wajib:
