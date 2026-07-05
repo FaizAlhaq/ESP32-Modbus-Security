@@ -105,8 +105,7 @@ Tujuan bab ini: tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-n
    addDevice(2, 0x33310c4737353230003f0049)
    ```
 
-> ⚠️ **Rekonsiliasi alur ID 2 (Bagian B vs Skenario A/B di Bab D):** ID 2 di atas didaftarkan **permanen** sebagai slave fisik sah kedua. Namun Skenario A (D.1) nanti akan mencabutnya lagi (`removeDevice(2)`) untuk menguji ROGUE_ID, dan Skenario B (D.2) memanggil `addDevice(2, ...)` sekali lagi setelahnya.
-> **BELUM DIPUTUSKAN — perlu konfirmasi penulis:** apakah `addDevice(2, ...)` di D.2 memang **perlu** (karena D.1 sudah mencabut slave 2 dari whitelist dalam sesi pengujian yang sama, jadi harus didaftarkan ulang) atau **redundan** (jika tiap skenario dijalankan sebagai sesi independen dan slave 2 masih terdaftar dari Bagian B ini). Jangan hapus salah satu langkah sebelum ini didiskusikan.
+> ℹ️ **Rekonsiliasi alur ID 2 (Bagian B vs Skenario A/B di Bab D) — DIPUTUSKAN:** ID 2 di atas didaftarkan **permanen** sebagai slave fisik sah kedua. Skenario A (D.1) nanti mencabutnya (`removeDevice(2)`) untuk menguji ROGUE_ID, lalu Skenario B (D.2) memanggil `addDevice(2, ...)` lagi. Langkah `addDevice(2, ...)` di D.2 **tetap dipertahankan** (bukan dihapus) karena `addDevice()` di kontrak bersifat idempotent — aman dipanggil ulang tanpa efek samping (lihat `contracts/ModbusSecurity.sol:53-57`) — sehingga langkah ini selalu benar baik D.1 dijalankan lebih dulu di sesi yang sama maupun D.2 dijalankan sebagai sesi independen.
 
 ### B.3 Verifikasi pendaftaran
 
@@ -163,8 +162,6 @@ pip install pyserial
 
 ### D.1 Skenario A — Spoofing ID dicabut whitelist
 
-> Lihat catatan rekonsiliasi ID 2 di akhir Bagian B.2 sebelum menjalankan skenario ini.
-
 1. Di Remix, panggil **`removeDevice`** → isi `2` → **transact** (cabut otorisasi slave 2).
 2. Verifikasi: `whitelist(2)` → **call** → harus `false`.
 3. Di PC attacker, jalankan:
@@ -177,7 +174,7 @@ pip install pyserial
 
 ### D.2 Skenario B — Nilai tidak plausibel
 
-1. Daftarkan dulu slave 2 agar lolos identitas: `addDevice(2, <UID slave 2 dari serial>)`. (Lihat catatan rekonsiliasi di Bagian B.2 — langkah ini mungkin redundan jika slave 2 belum dicabut di sesi ini.)
+1. Daftarkan dulu slave 2 agar lolos identitas: `addDevice(2, <UID slave 2 dari serial>)` (langkah ini idempotent — aman dijalankan meski slave 2 sudah terdaftar; lihat catatan di Bagian B.2).
 2. Jalankan attacker mode `drop`:
    ```powershell
    python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop --base 1000
