@@ -1,0 +1,15 @@
+{
+  "name": "diagnostics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Diagnostik on-chain: verifikasi status transaksi logTransaction/logAnomaly ke ModbusSecurity.sol",
+  "scripts": {
+    "check": "node check_tx_status.mjs",
+    "sandbox": "node sandbox_replay.mjs"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "ganache": "^7.9.2",
+    "solc": "^0.8.24"
+  }
+}

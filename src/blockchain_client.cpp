@@ -15,6 +15,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <string.h>
 
 // Keccak-4 byte selector fungsi contract (hitung dari ABI)
 // Ganti dengan selector dari contract yang Anda deploy
@@ -25,6 +26,33 @@
 
 // Ukuran buffer payload JSON — cukup untuk satu RPC call
 #define RPC_BUF_SIZE  768
+
+// logTransaction()/logAnomaly() mengandung argumen `string` yang perlu
+// di-ABI-encode penuh (offset + length + data padded ke 32 byte) —
+// jauh lebih besar dari RPC_BUF_SIZE, jadi pakai buffer khusus.
+#define LOG_DATA_HEX_CAP    700
+#define LOG_PARAMS_BUF_SIZE 900
+
+// ------------------------------------------------------------
+// Encode satu argumen `string` sesuai ABI Ethereum: 32-byte length word
+// (hex) + data (hex) + zero-padding hex hingga kelipatan 32 byte.
+// Dipakai HANYA oleh logTransaction()/logAnomaly() — verifyDevice()
+// tidak menyentuh fungsi ini karena parameternya semua fixed-size.
+// Return: jumlah karakter hex yang ditulis ke `out`.
+static size_t abiEncodeDynamicString(const char* str, char* out, size_t outCap) {
+    size_t len    = strlen(str);
+    size_t padded = ((len + 31) / 32) * 32;
+    size_t pos    = 0;
+
+    pos += snprintf(out + pos, outCap - pos, "%064lx", (unsigned long)len);
+    for (size_t i = 0; i < len; i++) {
+        pos += snprintf(out + pos, outCap - pos, "%02x", (unsigned int)(uint8_t)str[i]);
+    }
+    for (size_t i = len; i < padded; i++) {
+        pos += snprintf(out + pos, outCap - pos, "00");
+    }
+    return pos;
+}
 
 // ------------------------------------------------------------
 void BlockchainClient::begin() {
@@ -137,18 +165,34 @@ bool BlockchainClient::verifyDevice(uint8_t slaveId, const uint8_t uid32[32]) {
 }
 
 // ------------------------------------------------------------
+// ABI encoding logTransaction(string txData, string txHash):
+//   selector(4B) + offset1(32B) + offset2(32B)
+//   + [length(32B) + data padded ke 32B] untuk txData
+//   + [length(32B) + data padded ke 32B] untuk txHash
+// ------------------------------------------------------------
 void BlockchainClient::logTransaction(const char* txData, const char* txHash) {
-    // Encode dua string sebagai parameter ABI (simplified)
-    char params[RPC_BUF_SIZE];
+    size_t   paddedData = ((strlen(txData) + 31) / 32) * 32;
+    uint32_t offset1    = 64;                       // 2 head word * 32 byte
+    uint32_t offset2    = offset1 + 32 + paddedData; // + length word + data txData
+
+    char   dataHex[LOG_DATA_HEX_CAP];
+    size_t pos = 0;
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%s", SEL_LOG_TRANSACTION);
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%064lx", (unsigned long)offset1);
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%064lx", (unsigned long)offset2);
+    pos += abiEncodeDynamicString(txData, dataHex + pos, sizeof(dataHex) - pos);
+    pos += abiEncodeDynamicString(txHash, dataHex + pos, sizeof(dataHex) - pos);
+
+    char params[LOG_PARAMS_BUF_SIZE];
     snprintf(params, sizeof(params),
              "[{\"from\":\"%s\",\"to\":\"%s\","
              "\"data\":\"%s\",\"gas\":\"%s\"}]",
              SENDER_ADDRESS,
              CONTRACT_ADDRESS,
-             SEL_LOG_TRANSACTION,
+             dataHex,
              TX_GAS_LIMIT);
 
-    char payload[RPC_BUF_SIZE];
+    char payload[LOG_PARAMS_BUF_SIZE];
     // Gunakan eth_sendTransaction (Ganache tidak perlu signed tx)
     buildRpcPayload("eth_sendTransaction", params, payload, sizeof(payload));
 
@@ -157,18 +201,31 @@ void BlockchainClient::logTransaction(const char* txData, const char* txHash) {
 }
 
 // ------------------------------------------------------------
+// ABI encoding logAnomaly(uint8 slaveId, uint8 anomalyType, string detail):
+//   selector(4B) + slaveId(32B) + anomalyType(32B) + offsetDetail(32B)
+//   + [length(32B) + data padded ke 32B] untuk detail
+// ------------------------------------------------------------
 void BlockchainClient::logAnomaly(uint8_t slaveId, AnomalyType type, const char* detail) {
-    char params[RPC_BUF_SIZE];
+    uint32_t offsetDetail = 96; // 3 head word * 32 byte
+
+    char   dataHex[LOG_DATA_HEX_CAP];
+    size_t pos = 0;
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%s", SEL_LOG_ANOMALY);
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%064x", (unsigned int)slaveId);
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%064x", (unsigned int)type);
+    pos += snprintf(dataHex + pos, sizeof(dataHex) - pos, "%064lx", (unsigned long)offsetDetail);
+    pos += abiEncodeDynamicString(detail, dataHex + pos, sizeof(dataHex) - pos);
+
+    char params[LOG_PARAMS_BUF_SIZE];
     snprintf(params, sizeof(params),
              "[{\"from\":\"%s\",\"to\":\"%s\","
-             "\"data\":\"%s%02x%02x\",\"gas\":\"%s\"}]",
+             "\"data\":\"%s\",\"gas\":\"%s\"}]",
              SENDER_ADDRESS,
              CONTRACT_ADDRESS,
-             SEL_LOG_ANOMALY,
-             slaveId, (uint8_t)type,
+             dataHex,
              TX_GAS_LIMIT);
 
-    char payload[RPC_BUF_SIZE];
+    char payload[LOG_PARAMS_BUF_SIZE];
     buildRpcPayload("eth_sendTransaction", params, payload, sizeof(payload));
 
     char txHash[68] = "N/A"; // "0x" + 64 hex + null

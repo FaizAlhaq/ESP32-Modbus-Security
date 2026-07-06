@@ -31,3 +31,7 @@ src/config_secret.h
 # OS files
 .DS_Store
 Thumbs.db
+
+# Node.js (tools/diagnostics)
+node_modules/
+package-lock.json
