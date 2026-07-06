@@ -1,16 +1,18 @@
 # Panduan Deployment — ESP32 Modbus Security Gateway
 
-> Ikuti bab **A → B → C → D → E** secara berurutan dari atas ke bawah.
-> Bab **F** hanya dibuka kalau PC mati / restart.
+> Ikuti bab **A → B → C → D → E → F** secara berurutan dari atas ke bawah.
+> Bab **F** kini ada di file terpisah: [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md).
+> Bab **G** hanya dibuka kalau PC mati / restart.
 
 | Bab | Isi | Kapan dipakai |
 |---|---|---|
-| [A](#a-persiapan-awal) | Persiapan awal (Ganache, Remix, config, flash) | Sekali di awal |
-| [B](#b-daftarkan-perangkat) | Daftarkan perangkat (UID → addDevice) | Setelah A |
-| [C](#c-mulai-monitor-serial) | Mulai monitor serial (rekam ke log) | Setiap sesi uji |
-| [D](#d-jalankan-skenario-pengujian) | Jalankan skenario A–E + Substitusi | Inti pengujian |
-| [E](#e-olah-data-otomatis) | Olah data otomatis → metrik | Setelah pengujian |
-| [F](#f-pemulihan-setelah-mati-daya--restart) | Pemulihan setelah mati daya / restart | Hanya saat perlu |
+| [A](#a-persiapan-awal) | Persiapan Awal (Ganache, Remix, config, flash) | Sekali di awal |
+| [B](#b-daftarkan-perangkat) | Daftarkan Perangkat (UID → addDevice) | Setelah A |
+| [C](#c-monitoring-serial) | Monitoring Serial (rekam ke log) | Setiap sesi uji |
+| [D](#d-persiapan-attacker) | Persiapan Attacker | Sebelum pengujian |
+| [E](#e-pengujian-per-parameter) | Pengujian per Parameter | Inti pengujian |
+| [F — PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md) | Pengolahan Data → metrik | Setelah pengujian |
+| [G](#g-pemulihan-setelah-mati-daya--restart) | Pemulihan setelah mati daya / restart | Hanya saat perlu |
 
 ---
 
@@ -105,7 +107,7 @@ Tujuan bab ini: tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-n
    addDevice(2, 0x33310c4737353230003f0049)
    ```
 
-> ℹ️ **Rekonsiliasi alur ID 2 (Bagian B vs Skenario A/B di Bab D) — DIPUTUSKAN:** ID 2 di atas didaftarkan **permanen** sebagai slave fisik sah kedua. Skenario A (D.1) nanti mencabutnya (`removeDevice(2)`) untuk menguji ROGUE_ID, lalu Skenario B (D.2) memanggil `addDevice(2, ...)` lagi. Langkah `addDevice(2, ...)` di D.2 **tetap dipertahankan** (bukan dihapus) karena `addDevice()` di kontrak bersifat idempotent — aman dipanggil ulang tanpa efek samping (lihat `contracts/ModbusSecurity.sol:53-57`) — sehingga langkah ini selalu benar baik D.1 dijalankan lebih dulu di sesi yang sama maupun D.2 dijalankan sebagai sesi independen.
+> ℹ️ **Rekonsiliasi alur ID 2 (Bagian B vs pengujian ROGUE_ID/VALUE_RANGE di Bab E) — DIPUTUSKAN:** ID 2 di atas didaftarkan **permanen** sebagai slave fisik sah kedua. Pengujian ROGUE_ID (E.1) nanti mencabutnya (`removeDevice(2)`) untuk menguji ROGUE_ID, lalu pengujian VALUE_RANGE (E.2) memanggil `addDevice(2, ...)` lagi. Langkah `addDevice(2, ...)` di E.2 **tetap dipertahankan** (bukan dihapus) karena `addDevice()` di kontrak bersifat idempotent — aman dipanggil ulang tanpa efek samping (lihat `contracts/ModbusSecurity.sol:53-57`) — sehingga langkah ini selalu benar baik E.1 dijalankan lebih dulu di sesi yang sama maupun E.2 dijalankan sebagai sesi independen.
 
 ### B.3 Verifikasi pendaftaran
 
@@ -121,7 +123,7 @@ Tujuan bab ini: tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-n
 
 ---
 
-## C. Mulai Monitor Serial
+## C. Monitoring Serial
 
 Tujuan bab ini: merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu menatap layar.
 
@@ -138,29 +140,40 @@ Tujuan bab ini: merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu 
 
 > Kalau muncul `[BC] NODE BLOCKCHAIN TIDAK TERJANGKAU`: cek IP Ganache di `config.h`, pastikan Ganache jalan di port 7545, dan firewall tidak memblokir.
 
-> 💡 Untuk tiap skenario di Bab D, **catat nama file `.log`** yang aktif saat itu — file ini yang akan di-parse di Bab E.
+> 💡 Untuk tiap parameter di Bab E, **catat nama file `.log`** yang aktif saat itu — file ini yang akan di-parse di [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md) (Bab F).
 
 ---
 
-## D. Jalankan Skenario Pengujian
+## D. Persiapan Attacker
 
-Tujuan bab ini: membangkitkan tiap jenis anomali secara terkendali, satu skenario satu sesi.
+Tujuan bab ini: siapkan PC attacker sekali sebelum pengujian per parameter di Bab E dimulai.
 
-**Persiapan attacker (sekali):** di PC attacker, install pyserial dan cek COM port USB-RS485 di Device Manager (mis. `COM7`). Jangan tertukar dengan port ESP32.
+Di PC attacker, install pyserial dan cek COM port USB-RS485 di Device Manager (mis. `COM7`). Jangan tertukar dengan port ESP32.
 ```powershell
 pip install pyserial
 ```
 
-| Skenario | Tujuan | Jenis diharapkan |
-|---|---|---|
-| D.1 — A | Spoofing ID yang dicabut whitelist | ROGUE_ID |
-| D.2 — B | Nilai forward tidak plausibel | VALUE_RANGE |
-| D.3 — C | Perangkat sah hilang | DEVICE_LOST |
-| D.4 — D | Peniruan sempurna (evasif) | NONE (FN by design) |
-| D.5 — E | Operasi normal | NONE (ukur FPR) |
-| D.6 — SUB | Substitusi identitas (UID salah) | IDENTITY |
+---
 
-### D.1 Skenario A — Spoofing ID dicabut whitelist
+## E. Pengujian per Parameter
+
+Tujuan bab ini: membangkitkan tiap parameter deteksi secara terkendali, satu parameter satu sesi.
+
+Kriteria pengujian dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
+
+| Parameter | Kriteria pengujian (n) | Kode file log |
+|---|---|---|
+| ROGUE_ID | Polling kontinu otomatis — n besar, **tidak perlu target eksplisit** (n mengikuti durasi proses berjalan) | A |
+| VALUE_RANGE | Polling kontinu otomatis — n besar, **tidak perlu target eksplisit** | B |
+| DEVICE_LOST | **WAJIB eksplisit n ≥ 10 siklus** (cabut-pasang kabel berulang) — hanya terpicu saat transisi status, bukan tiap poll | C |
+| Peniruan Sempurna (NONE, FN by design) | Prosedural — attacker meniru UID asli sekali, amati tidak ada anomali | D |
+| Operasi Normal (NONE, ukur FPR) | Durasi minimal 30 menit (atau N siklus polling), tanpa attacker | E |
+| IDENTITY | **WAJIB eksplisit n ≥ 10 siklus** (reconnect berulang) — hanya terpicu saat transisi status, bukan tiap poll | SUB |
+| Tamper-Evidence | **n = 1 record** — prosedural (edit-and-compare), bukan berbasis n/durasi | — |
+
+> Kolom "Kode file log" (A/B/C/D/E/SUB) dipakai HANYA sebagai id file `.log` dan argumen `--scenario` di [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md) — bukan nomor bagian.
+
+### E.1 ROGUE_ID
 
 1. Di Remix, panggil **`removeDevice`** → isi `2` → **transact** (cabut otorisasi slave 2).
 2. Verifikasi: `whitelist(2)` → **call** → harus `false`.
@@ -168,29 +181,31 @@ pip install pyserial
    ```powershell
    python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
    ```
-4. Biarkan berjalan untuk jumlah trial yang direncanakan (mis. 30 siklus polling).
+4. Biarkan attacker berjalan kontinu — **tidak perlu target n eksplisit**; setiap siklus polling yang gagal-lolos ROGUE_ID otomatis menambah sampel (n) selama proses berjalan.
 5. Di serial ESP32, harap muncul `[SEC] >>> ANOMALI ... jenis=ROGUE_ID`.
 6. Hentikan attacker (`Ctrl + C`). Catat nama file `.log`.
 
-### D.2 Skenario B — Nilai tidak plausibel
+### E.2 VALUE_RANGE
 
 1. Daftarkan dulu slave 2 agar lolos identitas: `addDevice(2, <UID slave 2 dari serial>)` (langkah ini idempotent — aman dijalankan meski slave 2 sudah terdaftar; lihat catatan di Bagian B.2).
 2. Jalankan attacker mode `drop`:
    ```powershell
    python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop --base 1000
    ```
-3. Harap muncul `[SEC] >>> ANOMALI ... jenis=VALUE_RANGE` (forward pulse turun).
-4. Hentikan attacker. Catat file `.log`.
+3. Biarkan attacker berjalan kontinu — **tidak perlu target n eksplisit**; sampel (n) terkumpul otomatis tiap siklus polling.
+4. Harap muncul `[SEC] >>> ANOMALI ... jenis=VALUE_RANGE` (forward pulse turun).
+5. Hentikan attacker. Catat file `.log`.
 
-### D.3 Skenario C — Perangkat hilang
+### E.3 DEVICE_LOST
 
 1. Pastikan slave 1 sudah pernah merespons (ESP32 menandainya `wasPresent`).
-2. **Cabut kabel RS485** slave 1 (atau matikan slave).
-3. Harap muncul `[SEC] >>> ANOMALI ... jenis=DEVICE_LOST`.
-4. **Colok kembali** kabel → slave pulih → polling normal lanjut.
-5. Catat file `.log`.
+2. **WAJIB**: ulangi siklus berikut minimal **10 kali (n ≥ 10)** — DEVICE_LOST hanya terpicu saat transisi status (cabut → hilang → colok kembali), bukan tiap poll, sehingga jumlah siklus harus eksplisit, bukan "biarkan berjalan N menit":
+   - Cabut kabel RS485 slave 1 (atau matikan slave).
+   - Tunggu hingga muncul `[SEC] >>> ANOMALI ... jenis=DEVICE_LOST` di serial — ini 1 sampel.
+   - Colok kembali kabel → tunggu hingga slave pulih (poll sukses lagi, identitas terverifikasi ulang).
+3. Setelah n ≥ 10 sampel tercatat, hentikan pengujian. Catat file `.log`.
 
-### D.4 Skenario D — Peniruan sempurna (evasif)
+### E.4 Peniruan Sempurna (NONE, FN by design)
 
 1. Pastikan slave 2 terdaftar dengan UID asli.
 2. Jalankan attacker meniru UID asli:
@@ -200,69 +215,47 @@ pip install pyserial
 3. Harap **TIDAK ada** anomali — attacker berhasil menyamar.
 4. Ini **False Negative by design** → bukti batas sistem → autentikasi kripto = future work. Catat file `.log`.
 
-### D.5 Skenario E — Operasi normal (FPR)
+### E.5 Operasi Normal (NONE, ukur FPR)
 
 1. Pastikan slave 1 dan 2 terhubung, terdaftar, **tidak ada attacker**.
 2. Biarkan sistem berjalan normal minimal **30 menit** (atau N siklus polling).
 3. Harap **TIDAK ada** baris `[SEC] >>> ANOMALI` sama sekali.
 4. Bila ada anomali muncul, itu **False Positive**. Catat file `.log`.
 
-### D.6 Skenario SUB — Substitusi identitas
+### E.6 IDENTITY
 
 1. Pastikan slave 2 terdaftar dengan UID asli.
-2. Jalankan attacker **tanpa** `--uid` (UID default semua nol):
-   ```powershell
-   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
-   ```
-3. Harap muncul `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok).
-4. Hentikan attacker. Catat file `.log`.
+2. **WAJIB**: ulangi siklus berikut minimal **10 kali (n ≥ 10)** — IDENTITY hanya terpicu saat transisi status (first-contact/reconnect), bukan tiap poll, sehingga jumlah siklus harus eksplisit:
+   - Jalankan attacker **tanpa** `--uid` (UID default semua nol):
+     ```powershell
+     python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
+     ```
+   - Tunggu hingga muncul `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok) — ini 1 sampel.
+   - Hentikan attacker (`Ctrl + C`), lalu jalankan ulang agar siklus reconnect berikutnya terpicu.
+3. Setelah n ≥ 10 sampel tercatat, hentikan pengujian. Catat file `.log`.
+
+### E.7 Tamper-Evidence
+
+Prosedur formal — n = 1 record, bersifat prosedural (edit-and-compare), bukan statistik.
+
+1. Picu satu record tercatat ke blockchain: biarkan satu transaksi valid ter-flush secara normal (lihat Bab F), atau picu satu anomali (mis. ROGUE_ID di E.1).
+2. Ambil txHash on-chain record tsb dari `receipt.logs` — pakai `tools/diagnostics/check_tx_status.mjs` (lihat [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md)) atau Remix — lalu salin payload aslinya (txData/txHash, atau slaveId/anomalyType/detail) ke file JSON baru, mis. `tools/diagnostics/tamper_test_record.json`.
+3. **Edit** file JSON tsb — ubah satu karakter pada field data (misal satu digit pada `txData` atau `detail`).
+4. **Hash ulang** data yang sudah diedit itu dengan SHA-256 untuk mendapatkan hash baru.
+5. **Bandingkan** hash baru terhadap `txHash` asli yang tersimpan di `receipt.logs` on-chain (event `TransactionLogged`/`AnomalyLogged`) — hasil yang benar harus **TIDAK SAMA**.
+6. **Catat** hasil perbandingan (cocok/tidak cocok) sebagai bukti tamper-evidence untuk Bab IV — ketidakcocokan hash membuktikan bahwa perubahan data dapat dideteksi secara kriptografis, sesuai prinsip "blockchain hanya mencatat, ESP32 yang mendeteksi" di [LOCKED_DEFINITION.md](LOCKED_DEFINITION.md).
 
 ---
 
-## E. Olah Data Otomatis
+## F. Pengolahan Data
 
-Tujuan bab ini: mengubah file `.log` menjadi confusion matrix + metrik, otomatis tanpa hitung manual.
+Bab ini ada di file terpisah: **[PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md)**.
 
-### E.1 Install dependensi (sekali)
-
-```powershell
-pip install openpyxl
-```
-
-### E.2 Parse tiap log (sekali per skenario)
-
-```powershell
-python tools/logger/parse_serial.py --log <log_A> --scenario A   --target 2 --expected ROGUE_ID
-python tools/logger/parse_serial.py --log <log_B> --scenario B   --target 2 --expected VALUE_RANGE
-python tools/logger/parse_serial.py --log <log_C> --scenario C   --target 1 --expected DEVICE_LOST
-python tools/logger/parse_serial.py --log <log_D> --scenario D   --target 2 --expected NONE
-python tools/logger/parse_serial.py --log <log_E> --scenario E   --target 0 --expected NONE
-python tools/logger/parse_serial.py --log <log_S> --scenario SUB --target 2 --expected IDENTITY
-```
-
-Tiap perintah menambah satu baris ke `confusion.csv` dan mengisi `response_times.csv`.
-
-### E.3 Buat Excel + cetak metrik
-
-```powershell
-python tools/logger/buat_excel.py
-```
-
-Menghasilkan `hasil_pengujian.xlsx` (sheet: **Ringkasan**, **Metrik**, **Data Mentah**) dan mencetak confusion matrix + DR / FPR / Precision / Accuracy / F1-score ke terminal — angka untuk Tabel di Bab IV.
-
-### E.4 Ekspor log audit blockchain
-
-```powershell
-python tools/logger/export_anomali.py
-```
-
-Menghasilkan `anomali_log.csv` (waktu nyata, jenis, detail, txHash) — bukti audit immutable untuk lampiran Bab IV.
-
-> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi E.2.
+Jalankan setelah seluruh parameter di Bab E selesai diuji dan tiap file `.log` sudah dicatat.
 
 ---
 
-## F. Pemulihan Setelah Mati Daya / Restart
+## G. Pemulihan Setelah Mati Daya / Restart
 
 Buka bab ini **hanya** kalau PC mati atau restart. Tidak perlu deploy ulang maupun `addDevice` ulang.
 
@@ -317,12 +310,13 @@ Deteksi keamanan berfokus pada **identitas** (`id` + `uid`) dan **integritas nil
 
 ### Jenis anomali
 
+4 kelas final (lihat [LOCKED_DEFINITION.md](LOCKED_DEFINITION.md) untuk definisi terkunci):
+
 | Tipe | Nama | Pemicu |
 |---|---|---|
 | 1 | ROGUE_ID | ID tidak ada di whitelist blockchain |
-| 2 | TIMING | Respons di luar window 600 ms |
 | 3 | VALUE_RANGE | Forward pulse turun atau delta > 1000 |
-| 4 | DEVICE_LOST | Slave pernah hadir, kini tidak merespons |
+| 4 | DEVICE_LOST | Slave pernah hadir, kini tidak merespons (termasuk mekanisme TIMING — respons > window 600 ms — sebagai tanda awal sebelum device dianggap hilang) |
 | 5 | IDENTITY | UID tidak cocok atau belum terdaftar on-chain |
 
 > Definisi sistem yang terkunci ada di [LOCKED_DEFINITION.md](LOCKED_DEFINITION.md).

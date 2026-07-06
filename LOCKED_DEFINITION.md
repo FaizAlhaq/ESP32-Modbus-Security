@@ -21,14 +21,18 @@ Jangan pernah tulis "blockchain mendeteksi".
 
 ## Jenis Anomali
 
+4 kelas final yang diuji dan dilaporkan di confusion matrix:
+
 | Tipe | Nama | Keterangan |
 |---|---|---|
-| 0 | NO_REQUEST | Tidak diuji — di luar scope model polling |
 | 1 | ROGUE_ID | ID tidak ada di whitelist blockchain |
-| 2 | TIMING | Respons di luar window 600 ms |
 | 3 | VALUE_RANGE | Forward pulse turun atau delta > 1000 |
 | 4 | DEVICE_LOST | Slave pernah hadir, kini tidak merespons |
 | 5 | IDENTITY | UID tidak cocok atau belum terdaftar on-chain |
+
+Dua nilai enum lain di kode (`blockchain_client.h`) TIDAK dihitung sebagai Tipe independen:
+- **0 — NO_REQUEST**: tidak diuji, di luar scope model polling.
+- **2 — TIMING**: bukan Tipe independen. Ini mekanisme di dalam DEVICE_LOST — respons yang melewati window 600 ms (`RESPONSE_WINDOW_MS`, `security.cpp::checkTiming()`) adalah tanda slave mulai tidak sehat sebelum akhirnya benar-benar hilang. Nilai enum tetap ada di kode untuk kompatibilitas, tapi secara metodologis/confusion-matrix dilaporkan di bawah DEVICE_LOST, bukan Tipe terpisah.
 
 Tabel ini harus sinkron dengan: kode (`blockchain_client.h`) ↔ dokumen skripsi ↔
 confusion matrix pengujian.
@@ -43,12 +47,31 @@ confusion matrix pengujian.
 | Sniffing pasif | Di luar scope — gateway hanya evaluasi respons atas poll-nya sendiri |
 | Peniruan sempurna | FN by design — future work kriptografi |
 
+## Kriteria Pengujian (Jumlah Sampel)
+
+Kriteria keberhasilan pengujian per parameter dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
+
+| Parameter | Kriteria n |
+|---|---|
+| ROGUE_ID | Polling kontinu otomatis — n besar, tidak perlu target eksplisit (n mengikuti durasi proses berjalan) |
+| VALUE_RANGE | Polling kontinu otomatis — n besar, tidak perlu target eksplisit |
+| DEVICE_LOST | WAJIB eksplisit n ≥ 10 siklus (cabut-pasang kabel berulang) — hanya terpicu saat transisi status, bukan tiap poll |
+| IDENTITY | WAJIB eksplisit n ≥ 10 siklus (reconnect berulang) — hanya terpicu saat transisi status, bukan tiap poll |
+| Tamper-Evidence | n = 1 record — prosedural (edit-and-compare), bukan berbasis n/durasi |
+
+Detail langkah teknis ada di DEPLOYMENT.md Bab E (Pengujian per Parameter).
+
 ## Batasan Deteksi (Tidak Boleh Diklaim Terdeteksi)
 
 - Frame RS485 dari ID yang tidak pernah di-poll
 - Respons tanpa permintaan (unsolicited response)
 - Sniffing (penyadapan pasif)
 - Peniruan sempurna (attacker kloning UID + nilai wajar)
+
+## Keterbatasan Tambahan (Terverifikasi Kode)
+
+- **Blockchain unreachable → data hilang diam-diam, bukan diretry.** `Security::checkWhitelist()` (`security.cpp:197-212`) memang fail-closed (anomali ROGUE_ID jika BC tidak terjangkau). Tapi untuk logging: `Logger::reportAnomaly()` (`logger.cpp:49-56`) hanya menambah counter `_pendingAnomaly` saat BC down — detail anomali tidak disimpan untuk dikirim ulang. `Logger::flush()` (`logger.cpp:90-97`) membuang seluruh buffer transaksi valid (`_count = 0`) saat BC tidak terjangkau. Tidak ada retry maupun penyimpanan non-volatile di `logger.cpp`/`blockchain_client.cpp`; saat BC pulih, sistem hanya mencetak peringatan jumlah yang hilang, bukan mengirim ulang.
+- **Restart total mereset status kehadiran tanpa peringatan.** `Security::begin()` (`security.cpp:21-30`) di-panggil tiap `setup()` (`main.cpp:155`), me-`memset` `_wasPresent` dan `_currentlyPresent` ke `false` untuk semua slave. Akibatnya: kegagalan poll pada siklus pertama pasca-boot TIDAK memicu DEVICE_LOST (karena `wasPresent()` baru true setelah `markPresent()` dipanggil sekali — `main.cpp:73,127`), dan setiap slave otomatis masuk ulang ke jalur verifikasi UID/TOFU (`main.cpp:96`) tanpa ada log eksplisit bahwa gateway baru saja restart. Reboot yang bertepatan dengan upaya impersonasi akan terlihat identik dengan kontak pertama yang sah.
 
 ## Future Work (TERKUNCI)
 
