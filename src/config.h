@@ -45,8 +45,6 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
 // 1 pulse = 10 liter. Nilai kumulatif (selalu naik, tidak pernah turun).
 #define REG_FORWARD_PULSE    0x0000      // Forward pulse uint32 (LSW 0x0000, MSW 0x0001)
 #define REG_BACKWARD_PULSE   0x0002      // Backward pulse uint32 (LSW 0x0002, MSW 0x0003)
-// TODO: REG_VALVE_STATUS — belum dikonfirmasi ada di AGNIKA. Jangan poll dulu.
-// #define REG_VALVE_STATUS  0x0004
 
 // Timeout respons slave (ms)
 #define MODBUS_RESPONSE_TIMEOUT_MS  500
