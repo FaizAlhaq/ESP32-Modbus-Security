@@ -76,7 +76,7 @@ static void pollAndCheck(uint8_t slaveId) {
             check.passed             = false;
             check.anomalyRogueDevice = false;
             check.anomalyNoRequest   = false;
-            check.anomalyTiming      = false;
+            check.anomalyDeviceLost  = true;
             check.anomalyValueRange  = false;
             check.primaryAnomaly     = ANOMALY_DEVICE_LOST;
             snprintf(check.detail, sizeof(check.detail),
@@ -108,7 +108,7 @@ static void pollAndCheck(uint8_t slaveId) {
                 idCheck.passed             = false;
                 idCheck.anomalyRogueDevice = false;
                 idCheck.anomalyNoRequest   = false;
-                idCheck.anomalyTiming      = false;
+                idCheck.anomalyDeviceLost  = false;
                 idCheck.anomalyValueRange  = false;
                 idCheck.primaryAnomaly     = ANOMALY_IDENTITY;
                 snprintf(idCheck.detail, sizeof(idCheck.detail),

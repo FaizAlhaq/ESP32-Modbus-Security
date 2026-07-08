@@ -46,9 +46,6 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
 #define REG_FORWARD_PULSE    0x0000      // Forward pulse uint32 (LSW 0x0000, MSW 0x0001)
 #define REG_BACKWARD_PULSE   0x0002      // Backward pulse uint32 (LSW 0x0002, MSW 0x0003)
 
-// Timeout respons slave (ms)
-#define MODBUS_RESPONSE_TIMEOUT_MS  500
-
 // ------------------------------------------------------------
 // Deteksi anomali
 // ------------------------------------------------------------

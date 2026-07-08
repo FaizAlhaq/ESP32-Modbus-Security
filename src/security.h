@@ -19,7 +19,7 @@ struct SecurityCheck {
     bool    passed;             // true = lolos semua pemeriksaan
     bool    anomalyRogueDevice; // Slave tidak ada di whitelist
     bool    anomalyNoRequest;   // Respons datang tanpa request tercatat
-    bool    anomalyTiming;      // Respons terlalu lambat
+    bool    anomalyDeviceLost;  // Respons terlalu lambat / tidak merespons (DEVICE_LOST)
     bool    anomalyValueRange;  // Nilai di luar batas wajar
     AnomalyType primaryAnomaly; // Tipe anomali utama (jika ada)
     char    detail[64];         // Deskripsi singkat untuk log

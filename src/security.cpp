@@ -71,7 +71,7 @@ bool Security::checkPollResult(const PollResult& result, SecurityCheck& check) {
     check.passed             = true;
     check.anomalyRogueDevice = false;
     check.anomalyNoRequest   = false;
-    check.anomalyTiming      = false;
+    check.anomalyDeviceLost  = false;
     check.anomalyValueRange  = false;
     check.detail[0]          = '\0';
 
@@ -127,13 +127,17 @@ bool Security::checkSlaveId(const PollResult& r, SecurityCheck& c) {
 
 // ------------------------------------------------------------
 // Lapisan 2: waktu respons dalam jendela yang wajar
+// Respons yang melewati RESPONSE_WINDOW_MS diklasifikasikan sebagai
+// DEVICE_LOST (bukan TIMING terpisah) — perangkat yang merespons
+// terlalu lambat dianggap efektif tidak responsif. Keputusan terkunci,
+// lihat LOCKED_DEFINITION.md.
 // ------------------------------------------------------------
 bool Security::checkTiming(const PollResult& r, SecurityCheck& c) {
     if (r.response_time_ms > RESPONSE_WINDOW_MS) {
-        c.anomalyTiming  = true;
-        c.primaryAnomaly = ANOMALY_TIMING;
+        c.anomalyDeviceLost = true;
+        c.primaryAnomaly    = ANOMALY_DEVICE_LOST;
         snprintf(c.detail, sizeof(c.detail),
-                 "Slave %u respons %lu ms (maks %u ms)",
+                 "Slave %u respons %lu ms (maks %u ms) - dianggap tidak responsif",
                  r.slave_id,
                  (unsigned long)r.response_time_ms,
                  RESPONSE_WINDOW_MS);
