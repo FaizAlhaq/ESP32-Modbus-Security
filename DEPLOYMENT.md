@@ -16,9 +16,17 @@
 
 ---
 
+## Peta Arsitektur Fisik
+
+Skema fisik proof-of-concept — konsisten dengan definisi terkunci di [LOCKED_DEFINITION.md](LOCKED_DEFINITION.md): 1 ESP32 gateway, 2 slave sensor-only (ID 1 referensi permanen, ID 2 target impersonation), tanpa aktuator, WiFi ke Ganache 1-node, dan PC penyerang lewat adapter USB-RS485.
+
+![Peta arsitektur fisik: PC admin (Ganache + Remix) via WiFi ke ESP32 gateway; bus RS485 ke Slave ID 1 dan Slave ID 2; PC penyerang tersambung ke bus lewat USB-RS485](assets/arsitektur-fisik.svg)
+
+---
+
 ## A. Persiapan Awal
 
-Tujuan bab ini: blockchain hidup, kontrak ter-deploy, ESP32 menyala dan tersambung.
+> **Tujuan:** blockchain hidup, kontrak ter-deploy, ESP32 menyala dan tersambung.
 
 ### A.1 Jalankan Ganache
 
@@ -75,11 +83,13 @@ Simpan file (`Ctrl + S`).
 
 > ⚠️ Setiap kali `config.h` berubah, **wajib flash ulang** — kalau tidak, ESP32 masih memakai konfigurasi lama.
 
+**✅ Selesai jika:** Ganache jalan di port 7545, kontrak ter-deploy (punya `CONTRACT_ADDRESS`), `config.h` terisi 4 field, dan flash ESP32 menampilkan `SUCCESS`.
+
 ---
 
 ## B. Daftarkan Perangkat
 
-Tujuan bab ini: tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-nya, agar tidak dianggap anomali.
+> **Tujuan:** tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-nya, agar tidak dianggap anomali.
 
 > ⚠️ `addDevice(uint8 slaveId, uint256 uid)` butuh **DUA argumen**. Memanggil dengan satu argumen akan **ditolak Remix**.
 
@@ -121,11 +131,13 @@ Tujuan bab ini: tiap slave sah (ID 1 dan ID 2) terdaftar di kontrak dengan UID-n
 
 > Slave yang **belum** didaftarkan akan memicu anomali `IDENTITY` (jenis 5) saat kontak pertama, lalu `ROGUE_ID` pada pengecekan whitelist tiap poll. Itu memang perilaku yang benar.
 
+**✅ Selesai jika:** `whitelist(1)` dan `whitelist(2)` mengembalikan `true`, dan serial menampilkan `[SEC] identitas slave N terverifikasi (UID cocok)` untuk kedua slave.
+
 ---
 
 ## C. Monitoring Serial
 
-Tujuan bab ini: merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu menatap layar.
+> **Tujuan:** merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu menatap layar.
 
 1. Pastikan `platformio.ini` punya baris `monitor_filters = log2file` (sudah ada di repo).
 2. Jalankan monitor:
@@ -142,22 +154,31 @@ Tujuan bab ini: merekam semua output ESP32 ke file `.log` otomatis, tanpa perlu 
 
 > 💡 Untuk tiap parameter di Bab E, **catat nama file `.log`** yang aktif saat itu — file ini yang akan di-parse di [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md) (Bab F).
 
+**✅ Selesai jika:** serial monitor jalan, muncul `[BC] BlockchainClient siap`, dan file `.log` mulai terisi otomatis.
+
 ---
 
 ## D. Persiapan Attacker
 
-Tujuan bab ini: siapkan PC attacker sekali sebelum pengujian per parameter di Bab E dimulai.
+> **Tujuan:** siapkan PC attacker sekali sebelum pengujian per parameter di Bab E dimulai.
 
-Di PC attacker, install pyserial dan cek COM port USB-RS485 di Device Manager (mis. `COM7`). Jangan tertukar dengan port ESP32.
-```powershell
-pip install pyserial
-```
+1. Install pyserial di PC attacker:
+   ```powershell
+   pip install pyserial
+   ```
+2. Cek COM port USB-RS485 di Device Manager (mis. `COM7`). Jangan tertukar dengan port ESP32.
+
+**✅ Selesai jika:** `pip install pyserial` sukses dan COM port adapter USB-RS485 attacker sudah diketahui.
 
 ---
 
 ## E. Pengujian per Parameter
 
-Tujuan bab ini: membangkitkan tiap parameter deteksi secara terkendali, satu parameter satu sesi.
+> **Tujuan:** membangkitkan tiap parameter deteksi secara terkendali, satu parameter satu sesi.
+
+Urutan gerbang deteksi di firmware — persis seperti `pollAndCheck()` (`main.cpp`) lalu `checkPollResult()` (`security.cpp`):
+
+![Alur keputusan deteksi: poll slave → cek respons (DEVICE_LOST) → cek UID saat reconnect (IDENTITY) → cek nilai forward (VALUE_RANGE) → cek whitelist (ROGUE_ID) → transaksi valid ke Ganache](assets/alur-deteksi.svg)
 
 Kriteria pengujian dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
 
@@ -175,68 +196,82 @@ Kriteria pengujian dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
 
 ### E.1 ROGUE_ID
 
-1. Di Remix, panggil **`removeDevice`** → isi `2` → **transact** (cabut otorisasi slave 2).
-2. Verifikasi: `whitelist(2)` → **call** → harus `false`.
-3. Di PC attacker, jalankan:
-   ```powershell
-   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
-   ```
-4. Biarkan attacker berjalan kontinu — **tidak perlu target n eksplisit**; setiap siklus polling yang gagal-lolos ROGUE_ID otomatis menambah sampel (n) selama proses berjalan.
-5. Di serial ESP32, harap muncul `[SEC] >>> ANOMALI ... jenis=ROGUE_ID`.
-6. Hentikan attacker (`Ctrl + C`). Catat nama file `.log`.
+> **Tujuan:** buktikan slave dengan ID di luar whitelist blockchain terdeteksi.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | Prasyarat di Remix: `removeDevice(2)` → `transact`, verifikasi `whitelist(2)` = `false`. Lalu di PC attacker:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000`<br>Biarkan kontinu — n mengikuti durasi, tak perlu target eksplisit. |
+| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=ROGUE_ID` |
+| File log | `A` |
+| Rujukan kode | `security.cpp` (checkWhitelist), `main.cpp` |
 
 ### E.2 VALUE_RANGE
 
-1. Daftarkan dulu slave 2 agar lolos identitas: `addDevice(2, <UID slave 2 dari serial>)` (langkah ini idempotent — aman dijalankan meski slave 2 sudah terdaftar; lihat catatan di Bagian B.2).
-2. Jalankan attacker mode `drop`:
-   ```powershell
-   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop --base 1000
-   ```
-3. Biarkan attacker berjalan kontinu — **tidak perlu target n eksplisit**; sampel (n) terkumpul otomatis tiap siklus polling.
-4. Harap muncul `[SEC] >>> ANOMALI ... jenis=VALUE_RANGE` (forward pulse turun).
-5. Hentikan attacker. Catat file `.log`.
+> **Tujuan:** buktikan nilai forward tidak plausibel (turun) terdeteksi.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | Prasyarat: `addDevice(2, <UID slave 2 dari serial>)` agar lolos identitas (idempotent — lihat B.2). Lalu:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode drop --base 1000`<br>Biarkan kontinu — n mengikuti durasi. |
+| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=VALUE_RANGE` (forward pulse turun) |
+| File log | `B` |
+| Rujukan kode | `security.cpp` (checkValueRange), `main.cpp` |
 
 ### E.3 DEVICE_LOST
 
-1. Pastikan slave 1 sudah pernah merespons (ESP32 menandainya `wasPresent`).
-2. **WAJIB**: ulangi siklus berikut minimal **10 kali (n ≥ 10)** — DEVICE_LOST hanya terpicu saat transisi status (cabut → hilang → colok kembali), bukan tiap poll, sehingga jumlah siklus harus eksplisit, bukan "biarkan berjalan N menit":
-   - Cabut kabel RS485 slave 1 (atau matikan slave).
-   - Tunggu hingga muncul `[SEC] >>> ANOMALI ... jenis=DEVICE_LOST` di serial — ini 1 sampel.
-   - Colok kembali kabel → tunggu hingga slave pulih (poll sukses lagi, identitas terverifikasi ulang).
-3. Setelah n ≥ 10 sampel tercatat, hentikan pengujian. Catat file `.log`.
+> **Tujuan:** buktikan slave yang pernah hadir lalu hilang terdeteksi.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | Aksi fisik, **WAJIB n ≥ 10 siklus**. Prasyarat: slave 1 sudah pernah merespons (`wasPresent`). Ulangi ≥ 10 kali: (1) cabut kabel RS485 pada slave 1 / matikan slave-nya → tunggu anomali (1 sampel); (2) colok kembali → tunggu slave pulih. |
+| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=DEVICE_LOST` |
+| File log | `C` |
+| Rujukan kode | `main.cpp` (cek `wasPresent`), `security.cpp` (markLost) |
 
 ### E.4 Peniruan Sempurna (NONE, FN by design)
 
-1. Pastikan slave 2 terdaftar dengan UID asli.
-2. Jalankan attacker meniru UID asli:
-   ```powershell
-   python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000 --uid 0x<UID asli slave 2>
-   ```
-3. Harap **TIDAK ada** anomali — attacker berhasil menyamar.
-4. Ini **False Negative by design** → bukti batas sistem → autentikasi kripto = future work. Catat file `.log`.
+> **Tujuan:** tunjukkan batas sistem — attacker meniru UID asli TIDAK terdeteksi (False Negative by design).
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | Prasyarat: slave 2 terdaftar dengan UID asli. Lalu:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000 --uid 0x<UID asli slave 2>` |
+| Output diharapkan | **TIDAK ada** anomali — attacker berhasil menyamar (FN by design → autentikasi kripto = future work) |
+| File log | `D` |
+| Rujukan kode | `main.cpp` (verifyDevice id+uid) |
 
 ### E.5 Operasi Normal (NONE, ukur FPR)
 
-1. Pastikan slave 1 dan 2 terhubung, terdaftar, **tidak ada attacker**.
-2. Biarkan sistem berjalan normal minimal **30 menit** (atau N siklus polling).
-3. Harap **TIDAK ada** baris `[SEC] >>> ANOMALI` sama sekali.
-4. Bila ada anomali muncul, itu **False Positive**. Catat file `.log`.
+> **Tujuan:** ukur False Positive Rate saat operasi normal tanpa attacker.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | **Tidak ada attacker.** Pastikan slave 1 dan 2 terhubung + terdaftar; biarkan sistem berjalan normal minimal **30 menit** (atau N siklus polling). |
+| Output diharapkan | **TIDAK ada** baris `[SEC] >>> ANOMALI`. Bila muncul → **False Positive**. |
+| File log | `E` |
+| Rujukan kode | `security.cpp` (checkPollResult) |
 
 ### E.6 IDENTITY
 
-1. Pastikan slave 2 terdaftar dengan UID asli.
-2. **WAJIB**: ulangi siklus berikut minimal **10 kali (n ≥ 10)** — IDENTITY hanya terpicu saat transisi status (first-contact/reconnect), bukan tiap poll, sehingga jumlah siklus harus eksplisit:
-   - Jalankan attacker **tanpa** `--uid` (UID default semua nol):
-     ```powershell
-     python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000
-     ```
-   - Tunggu hingga muncul `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok) — ini 1 sampel.
-   - Hentikan attacker (`Ctrl + C`), lalu jalankan ulang agar siklus reconnect berikutnya terpicu.
-3. Setelah n ≥ 10 sampel tercatat, hentikan pengujian. Catat file `.log`.
+> **Tujuan:** buktikan substitusi identitas (UID salah) terdeteksi.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | **WAJIB n ≥ 10 siklus** reconnect. Prasyarat: slave 2 terdaftar dengan UID asli. Ulangi ≥ 10 kali:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000` (tanpa `--uid`, UID default nol) → tunggu anomali (1 sampel) → `Ctrl + C` → jalankan ulang. |
+| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok) |
+| File log | `SUB` |
+| Rujukan kode | `main.cpp` (verifyDevice id+uid), `blockchain_client.cpp` |
 
 ### E.7 Tamper-Evidence
 
-Prosedur formal — n = 1 record, bersifat prosedural (edit-and-compare), bukan statistik.
+> **Tujuan:** buktikan perubahan record dapat dideteksi (hash tidak cocok). n = 1 record, prosedural.
+
+| Aspek | Isi |
+|---|---|
+| Perintah attacker | Prosedur manual edit-and-compare (n = 1) — lihat 6 langkah di bawah. |
+| Output diharapkan | Hash baru **TIDAK SAMA** dengan `txHash` on-chain → perubahan data terdeteksi (tamper-evident) |
+| File log | — (n = 1, tidak diparse `parse_serial.py`) |
+| Rujukan kode | `hash_util.cpp` (SHA-256), `blockchain_client.cpp` (logTransaction/logAnomaly), `contracts/ModbusSecurity.sol` |
+
+Langkah prosedur (n = 1):
 
 1. Picu satu record tercatat ke blockchain: biarkan satu transaksi valid ter-flush secara normal (lihat Bab F), atau picu satu anomali (mis. ROGUE_ID di E.1).
 2. Ambil txHash on-chain record tsb dari `receipt.logs` — pakai `tools/diagnostics/check_tx_status.mjs` (lihat [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md)) atau Remix — lalu salin payload aslinya (txData/txHash, atau slaveId/anomalyType/detail) ke file JSON baru, mis. `tools/diagnostics/tamper_test_record.json`.

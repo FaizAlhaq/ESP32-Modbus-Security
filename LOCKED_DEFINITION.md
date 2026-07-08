@@ -9,6 +9,10 @@ ESP32 **mendeteksi** anomali secara lokal di firmware.
 Blockchain **hanya mencatat** secara tamper-evident.
 Jangan pernah tulis "blockchain mendeteksi".
 
+## Peta Arsitektur Fisik
+
+![Peta arsitektur fisik: PC admin (Ganache + Remix) via WiFi ke ESP32 gateway; bus RS485 ke Slave ID 1 (referensi permanen) dan Slave ID 2 (target impersonation); PC penyerang tersambung ke bus lewat USB-RS485](assets/arsitektur-fisik.svg)
+
 ## Field yang Ditangkap per Slave
 
 | Field | Sumber | Peran |
@@ -36,6 +40,10 @@ Dua nilai enum lain di kode (`blockchain_client.h`) TIDAK dihitung sebagai Tipe 
 
 Tabel ini harus sinkron dengan: kode (`blockchain_client.h`) ↔ dokumen skripsi ↔
 confusion matrix pengujian.
+
+Urutan gerbang deteksi keempat kelas anomali di firmware — dari `pollAndCheck()` (`main.cpp`) lalu `checkPollResult()` (`security.cpp`):
+
+![Alur keputusan deteksi anomali: cek respons (DEVICE_LOST), cek UID saat reconnect (IDENTITY), cek nilai forward (VALUE_RANGE), cek whitelist (ROGUE_ID), lalu transaksi valid ke Ganache](assets/alur-deteksi.svg)
 
 ## Scope Pengujian (Proof-of-Concept)
 

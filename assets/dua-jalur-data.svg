@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 590" role="img" aria-labelledby="dj-t dj-d" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title id="dj-t">Dua jalur data yang tidak saling tersambung</title>
+  <desc id="dj-d">Dari ESP32 gateway, data mengalir ke dua jalur terpisah. Jalur kiri (statistik): Serial Monitor disimpan manual ke folder logs, di-parse parse_serial.py, diolah buat_excel.py menjadi hasil_pengujian.xlsx untuk Tabel 4.1. Jalur kanan (audit resmi): logAnomaly dan logTransaction via WiFi/Web3 ke Ganache yang permanen dan tamper-evident, diekspor export_anomali.py menjadi anomali_log.csv untuk Lampiran. Kedua jalur tidak saling tersambung.</desc>
+  <defs>
+    <marker id="dj-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <polyline points="330,74 330,90 170,90 170,104" fill="none" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <polyline points="330,74 330,90 490,90 490,104" fill="none" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+
+  <line x1="330" y1="112" x2="330" y2="486" stroke="#6e7681" stroke-width="1.5" stroke-dasharray="4 6"/>
+
+  <line x1="170" y1="198" x2="170" y2="220" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <line x1="170" y1="270" x2="170" y2="292" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <line x1="170" y1="342" x2="170" y2="364" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <line x1="170" y1="414" x2="170" y2="436" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+
+  <line x1="490" y1="198" x2="490" y2="220" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <line x1="490" y1="270" x2="490" y2="292" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+  <line x1="490" y1="342" x2="490" y2="364" stroke="#8b949e" stroke-width="2" marker-end="url(#dj-arr)"/>
+
+  <rect x="210" y="20" width="240" height="54" rx="10" fill="#1a7f5a"/>
+  <text x="330" y="44" text-anchor="middle" fill="#ffffff" font-size="15" font-weight="600">ESP32 gateway</text>
+  <text x="330" y="63" text-anchor="middle" fill="#bfe9d8" font-size="12">sumber dua jalur data</text>
+
+  <rect x="60" y="104" width="220" height="30" rx="15" fill="#173a6b"/>
+  <text x="170" y="124" text-anchor="middle" fill="#bcd6ff" font-size="13" font-weight="600">Jalur Kiri &#8212; Statistik</text>
+
+  <rect x="380" y="104" width="220" height="30" rx="15" fill="#123f30"/>
+  <text x="490" y="124" text-anchor="middle" fill="#bfe9d8" font-size="13" font-weight="600">Jalur Kanan &#8212; Audit resmi</text>
+
+  <rect x="60" y="150" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="170" y="179" text-anchor="middle" fill="#ffffff" font-size="13.5">Serial Monitor (USB)</text>
+
+  <rect x="60" y="222" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="170" y="251" text-anchor="middle" fill="#ffffff" font-size="13.5">Simpan manual &#8594; logs/</text>
+
+  <rect x="60" y="294" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="170" y="323" text-anchor="middle" fill="#ffffff" font-size="13.5" font-family="monospace">parse_serial.py</text>
+
+  <rect x="60" y="366" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="170" y="395" text-anchor="middle" fill="#ffffff" font-size="13.5" font-family="monospace">buat_excel.py</text>
+
+  <rect x="60" y="436" width="220" height="54" rx="9" fill="#1f6feb"/>
+  <text x="170" y="460" text-anchor="middle" fill="#ffffff" font-size="13.5" font-weight="600">hasil_pengujian.xlsx</text>
+  <text x="170" y="479" text-anchor="middle" fill="#cfe0ff" font-size="11">Tabel 4.1 &#8212; DR / FPR / waktu respons</text>
+
+  <rect x="380" y="150" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="490" y="172" text-anchor="middle" fill="#ffffff" font-size="12.5" font-family="monospace">logAnomaly / logTransaction</text>
+  <text x="490" y="188" text-anchor="middle" fill="#b6bfca" font-size="11">WiFi / Web3</text>
+
+  <rect x="380" y="222" width="220" height="48" rx="9" fill="#1a7f5a"/>
+  <text x="490" y="244" text-anchor="middle" fill="#ffffff" font-size="13.5" font-weight="600">Ganache</text>
+  <text x="490" y="260" text-anchor="middle" fill="#bfe9d8" font-size="11">permanen, tamper-evident</text>
+
+  <rect x="380" y="294" width="220" height="48" rx="9" fill="#3d4450"/>
+  <text x="490" y="323" text-anchor="middle" fill="#ffffff" font-size="13.5" font-family="monospace">export_anomali.py</text>
+
+  <rect x="380" y="364" width="220" height="54" rx="9" fill="#1a7f5a"/>
+  <text x="490" y="388" text-anchor="middle" fill="#ffffff" font-size="13.5" font-weight="600">anomali_log.csv</text>
+  <text x="490" y="407" text-anchor="middle" fill="#bfe9d8" font-size="11">Lampiran &#8212; audit immutable</text>
+
+  <rect x="70" y="516" width="520" height="52" rx="8" fill="#2d333b"/>
+  <text x="330" y="538" text-anchor="middle" fill="#adbac7" font-size="12">Kedua jalur TIDAK saling tersambung: statistik (kiri) untuk metrik deteksi,</text>
+  <text x="330" y="556" text-anchor="middle" fill="#adbac7" font-size="12">catatan resmi tamper-evident (kanan) untuk audit &#8212; sumber terpisah, tidak saling memvalidasi.</text>
+</svg>

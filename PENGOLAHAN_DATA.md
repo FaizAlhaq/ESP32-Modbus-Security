@@ -3,9 +3,20 @@
 > Lanjutan dari [DEPLOYMENT.md](DEPLOYMENT.md) Bab E (Pengujian per Parameter).
 > Jalankan bab ini setelah seluruh parameter (E.1–E.7) selesai diuji dan tiap file `.log` sudah tercatat.
 
-## Olah Data Otomatis
+## Dua Jalur Data
 
-Tujuan bab ini: mengubah file `.log` menjadi confusion matrix + metrik, otomatis tanpa hitung manual.
+![Dua jalur data dari ESP32: jalur kiri statistik (Serial Monitor → simpan ke logs/ → parse_serial.py → buat_excel.py → hasil_pengujian.xlsx), jalur kanan audit (logAnomaly/logTransaction → Ganache → export_anomali.py → anomali_log.csv) — keduanya tidak saling tersambung](assets/dua-jalur-data.svg)
+
+Data pengujian mengalir lewat **dua jalur yang tidak saling tersambung**:
+
+- **Jalur kiri (statistik):** output Serial Monitor disimpan manual ke `logs/`, lalu diolah menjadi confusion matrix + metrik (DR / FPR / waktu respons) untuk Tabel 4.1.
+- **Jalur kanan (audit resmi):** `logAnomaly` / `logTransaction` via WiFi/Web3 ke Ganache — catatan permanen dan tamper-evident — diekspor menjadi `anomali_log.csv` untuk Lampiran.
+
+Keduanya independen: jalur kiri mengukur kinerja deteksi, jalur kanan menyediakan bukti tamper-evident — satu tidak memvalidasi yang lain.
+
+## Jalur Kiri — Statistik
+
+Tujuan: mengubah file `.log` menjadi confusion matrix + metrik, otomatis tanpa hitung manual.
 
 ### 1. Install dependensi (sekali)
 
@@ -36,6 +47,10 @@ python tools/logger/buat_excel.py
 
 Menghasilkan `hasil_pengujian.xlsx` (sheet: **Ringkasan**, **Metrik**, **Data Mentah**) dan mencetak confusion matrix + DR / FPR / Precision / Accuracy / F1-score ke terminal — angka untuk Tabel di Bab IV.
 
+> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi langkah 2.
+
+## Jalur Kanan — Audit Blockchain
+
 ### 4. Ekspor log audit blockchain
 
 ```powershell
@@ -43,5 +58,3 @@ python tools/logger/export_anomali.py
 ```
 
 Menghasilkan `anomali_log.csv` (waktu nyata, jenis, detail, txHash) — bukti audit immutable untuk lampiran Bab IV.
-
-> 🔁 Untuk mengulang dari awal: hapus `confusion.csv` dan `response_times.csv`, lalu ulangi langkah 2.

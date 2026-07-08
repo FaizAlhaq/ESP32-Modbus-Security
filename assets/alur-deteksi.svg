@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 640" role="img" aria-labelledby="ad-t ad-d" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <title id="ad-t">Alur keputusan deteksi anomali</title>
+  <desc id="ad-d">Setiap siklus polling: ESP32 mem-poll slave. Bila tidak merespons dan slave pernah hadir, dipicu DEVICE_LOST. Saat kontak pertama atau reconnect, UID dicek on-chain; tidak cocok memicu IDENTITY. Lalu tiap poll: nilai forward diperiksa (tidak wajar memicu VALUE_RANGE), dan status whitelist on-chain diperiksa (tidak terdaftar memicu ROGUE_ID). Bila lolos semua, transaksi valid dicatat via logTransaction ke Ganache.</desc>
+  <defs>
+    <marker id="ad-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <line x1="190" y1="74"  x2="190" y2="108" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="190" y1="160" x2="190" y2="194" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="190" y1="246" x2="190" y2="280" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="190" y1="332" x2="190" y2="366" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="190" y1="418" x2="190" y2="452" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+
+  <line x1="340" y1="135" x2="408" y2="135" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="340" y1="221" x2="408" y2="221" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="340" y1="307" x2="408" y2="307" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+  <line x1="340" y1="393" x2="408" y2="393" stroke="#8b949e" stroke-width="2" marker-end="url(#ad-arr)"/>
+
+  <text x="200" y="102" fill="#8b949e" font-size="11.5">Ya</text>
+  <text x="200" y="188" fill="#8b949e" font-size="11.5">Ya / bukan reconnect</text>
+  <text x="200" y="274" fill="#8b949e" font-size="11.5">Ya</text>
+  <text x="200" y="360" fill="#8b949e" font-size="11.5">Ya</text>
+  <text x="372" y="129" text-anchor="middle" fill="#8b949e" font-size="11.5">Tidak</text>
+  <text x="372" y="215" text-anchor="middle" fill="#8b949e" font-size="11.5">Tidak</text>
+  <text x="372" y="301" text-anchor="middle" fill="#8b949e" font-size="11.5">Tidak</text>
+  <text x="372" y="387" text-anchor="middle" fill="#8b949e" font-size="11.5">Tidak</text>
+
+  <rect x="40" y="24" width="300" height="50" rx="10" fill="#3d4450"/>
+  <text x="190" y="54" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="600">Poll slave (Modbus FC03)</text>
+
+  <rect x="40" y="110" width="300" height="50" rx="10" fill="#313a47" stroke="#5a6472" stroke-width="1"/>
+  <text x="190" y="140" text-anchor="middle" fill="#e6edf3" font-size="14">Respons diterima?</text>
+
+  <rect x="40" y="196" width="300" height="50" rx="10" fill="#313a47" stroke="#5a6472" stroke-width="1"/>
+  <text x="190" y="220" text-anchor="middle" fill="#e6edf3" font-size="14">UID cocok on-chain? <tspan fill="#8b949e" font-size="12">*</tspan></text>
+  <text x="190" y="237" text-anchor="middle" fill="#8b949e" font-size="10.5">saat kontak pertama / reconnect</text>
+
+  <rect x="40" y="282" width="300" height="50" rx="10" fill="#313a47" stroke="#5a6472" stroke-width="1"/>
+  <text x="190" y="306" text-anchor="middle" fill="#e6edf3" font-size="14">Nilai forward wajar?</text>
+  <text x="190" y="323" text-anchor="middle" fill="#8b949e" font-size="10.5">monoton naik, delta &#8804; 1000</text>
+
+  <rect x="40" y="368" width="300" height="50" rx="10" fill="#313a47" stroke="#5a6472" stroke-width="1"/>
+  <text x="190" y="398" text-anchor="middle" fill="#e6edf3" font-size="14">ID ter-whitelist on-chain?</text>
+
+  <rect x="40" y="452" width="300" height="58" rx="10" fill="#1a7f5a"/>
+  <text x="190" y="477" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="600">Transaksi valid</text>
+  <text x="190" y="497" text-anchor="middle" fill="#bfe9d8" font-size="12.5">logTransaction &#8594; Ganache</text>
+
+  <rect x="410" y="110" width="210" height="50" rx="10" fill="#a12d2d"/>
+  <text x="515" y="132" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">DEVICE_LOST</text>
+  <text x="515" y="149" text-anchor="middle" fill="#f0c9c9" font-size="11">main.cpp:72&#8211;88</text>
+
+  <rect x="410" y="196" width="210" height="50" rx="10" fill="#a12d2d"/>
+  <text x="515" y="218" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">IDENTITY</text>
+  <text x="515" y="235" text-anchor="middle" fill="#f0c9c9" font-size="11">main.cpp:96&#8211;119</text>
+
+  <rect x="410" y="282" width="210" height="50" rx="10" fill="#a12d2d"/>
+  <text x="515" y="304" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">VALUE_RANGE</text>
+  <text x="515" y="321" text-anchor="middle" fill="#f0c9c9" font-size="11">security.cpp:153</text>
+
+  <rect x="410" y="368" width="210" height="50" rx="10" fill="#a12d2d"/>
+  <text x="515" y="390" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="600">ROGUE_ID</text>
+  <text x="515" y="407" text-anchor="middle" fill="#f0c9c9" font-size="11">security.cpp:197 (whitelist)</text>
+
+  <text x="40" y="548" fill="#8b949e" font-size="11">* UID hanya dicek saat kontak pertama / reconnect (main.cpp:96); gerbang lain berjalan tiap poll.</text>
+  <text x="40" y="568" fill="#8b949e" font-size="11">DEVICE_LOST hanya jika slave pernah hadir. Respons &gt; 600 ms (TIMING) = tanda dini di bawah DEVICE_LOST,</text>
+  <text x="40" y="584" fill="#8b949e" font-size="11">bukan kelas terpisah.</text>
+  <text x="40" y="608" fill="#8b949e" font-size="11">Rujukan kode: main.cpp:70&#8211;138 &#8226; security.cpp:70&#8211;224 (urutan gerbang persis seperti checkPollResult).</text>
+</svg>
