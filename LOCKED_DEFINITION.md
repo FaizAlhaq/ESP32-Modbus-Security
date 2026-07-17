@@ -18,7 +18,7 @@ Jangan pernah tulis "blockchain mendeteksi".
 | Field | Sumber | Peran |
 |---|---|---|
 | `id` | Modbus slave address | Identitas — cek whitelist on-chain tiap poll |
-| `uid` | 6 register @0x000D (96-bit) | Identitas — cek verifyDevice(id,uid) saat kontak pertama/reconnect |
+| `uid` | 6 register @0x000D (96-bit) | Identitas — cek verifyDevice(id,uid); diulang tiap poll selama UID belum cocok, berhenti setelah identitas sah |
 | `forward` | uint32 @0x0000–0x0001 | Integritas — wajib monoton naik, delta ≤ 1000 |
 | `backward` | uint32 @0x0002–0x0003 | Data proses pendukung (tercatat, bukan sinyal deteksi) |
 | `accumulative` | derived | Data proses pendukung (tercatat, bukan sinyal deteksi) |
@@ -64,7 +64,7 @@ Kriteria keberhasilan pengujian per parameter dinyatakan sebagai **jumlah sampel
 | ROGUE_ID | Polling kontinu otomatis — n besar, tidak perlu target eksplisit (n mengikuti durasi proses berjalan) |
 | VALUE_RANGE | Polling kontinu otomatis — n besar, tidak perlu target eksplisit |
 | DEVICE_LOST | WAJIB eksplisit n ≥ 10 siklus (cabut-pasang kabel berulang) — hanya terpicu saat transisi status, bukan tiap poll |
-| IDENTITY | WAJIB eksplisit n ≥ 10 siklus (reconnect berulang) — hanya terpicu saat transisi status, bukan tiap poll |
+| IDENTITY | Polling kontinu otomatis — n besar, tidak perlu target eksplisit. Selama UID belum cocok, slave tidak ditandai hadir sehingga UID diverifikasi ulang tiap poll (anomali berulang, setara ROGUE_ID) |
 | Tamper-Evidence | n = 1 record — prosedural (edit-and-compare), bukan berbasis n/durasi |
 
 Detail langkah teknis ada di DEPLOYMENT.md Bab E (Pengujian per Parameter).

@@ -137,13 +137,15 @@ static void pollAndCheck(uint8_t slaveId) {
     // Periksa keamanan
     bool safe = g_security.checkPollResult(result, check);
 
-    if (safe) {
+    if (safe && identityOk) {
         // Transaksi valid → masukkan ke buffer log
         g_logger.addTransaction(result);
-    } else {
+    } else if (!safe) {
         // Anomali terdeteksi → kirim alert langsung ke blockchain
         g_logger.reportAnomaly(result, check);
     }
+    // safe && !identityOk → IDENTITY sudah dilaporkan di atas; transaksi TIDAK
+    // dicatat dan tidak dilaporkan ulang agar tidak dobel.
 }
 
 // ------------------------------------------------------------

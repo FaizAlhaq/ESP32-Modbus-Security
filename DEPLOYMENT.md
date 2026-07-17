@@ -129,7 +129,7 @@ Simpan file (`Ctrl + S`).
    [SEC] identitas slave 1 terverifikasi (UID cocok)
    ```
 
-> Slave yang **belum** didaftarkan akan memicu anomali `IDENTITY` (jenis 5) saat kontak pertama, lalu `ROGUE_ID` pada pengecekan whitelist tiap poll. Itu memang perilaku yang benar.
+> Slave yang **belum** didaftarkan akan memicu anomali `IDENTITY` (jenis 5) **berulang tiap poll** (slave tidak ditandai hadir selama UID belum cocok), disertai `ROGUE_ID` dari pengecekan whitelist tiap poll. Itu memang perilaku yang benar.
 
 **✅ Selesai jika:** `whitelist(1)` dan `whitelist(2)` mengembalikan `true`, dan serial menampilkan `[SEC] identitas slave N terverifikasi (UID cocok)` untuk kedua slave.
 
@@ -189,7 +189,7 @@ Kriteria pengujian dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
 | DEVICE_LOST | **WAJIB eksplisit n ≥ 10 siklus** (cabut-pasang kabel berulang) — hanya terpicu saat transisi status, bukan tiap poll | C |
 | Peniruan Sempurna (NONE, FN by design) | Prosedural — attacker meniru UID asli sekali, amati tidak ada anomali | D |
 | Operasi Normal (NONE, ukur FPR) | Durasi minimal 30 menit (atau N siklus polling), tanpa attacker | E |
-| IDENTITY | **WAJIB eksplisit n ≥ 10 siklus** (reconnect berulang) — hanya terpicu saat transisi status, bukan tiap poll | SUB |
+| IDENTITY | Polling kontinu otomatis — n besar, **tidak perlu target eksplisit** (UID diverifikasi ulang tiap poll selama belum cocok) | SUB |
 | Tamper-Evidence | **n = 1 record** — prosedural (edit-and-compare), bukan berbasis n/durasi | — |
 
 > Kolom "Kode file log" (A/B/C/D/E/SUB) dipakai HANYA sebagai id file `.log` dan argumen `--scenario` di [PENGOLAHAN_DATA.md](PENGOLAHAN_DATA.md) — bukan nomor bagian.
@@ -251,12 +251,12 @@ Kriteria pengujian dinyatakan sebagai **jumlah sampel (n)**, bukan durasi waktu:
 
 ### E.6 IDENTITY
 
-> **Tujuan:** buktikan substitusi identitas (UID salah) terdeteksi.
+> **Tujuan:** buktikan substitusi identitas (UID salah) terdeteksi berulang tiap poll dan transaksinya diblokir.
 
 | Aspek | Isi |
 |---|---|
-| Perintah attacker | **WAJIB n ≥ 10 siklus** reconnect. Prasyarat: slave 2 terdaftar dengan UID asli. Ulangi ≥ 10 kali:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000` (tanpa `--uid`, UID default nol) → tunggu anomali (1 sampel) → `Ctrl + C` → jalankan ulang. |
-| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok) |
+| Perintah attacker | Prasyarat: slave 2 terdaftar dengan UID asli. Lalu:<br>`python tools/attacker/attacker_slave.py --port <COM_ATTACKER> --id 2 --mode normal --base 1000` (tanpa `--uid`, UID default nol)<br>Biarkan kontinu — n mengikuti durasi, tak perlu target eksplisit. |
+| Output diharapkan | `[SEC] >>> ANOMALI ... jenis=IDENTITY` (UID tidak cocok), **berulang tiap poll** — selama UID belum cocok slave tidak ditandai hadir, sehingga transaksi tidak pernah dicatat sebagai sah |
 | File log | `SUB` |
 | Rujukan kode | `main.cpp` (verifyDevice id+uid), `blockchain_client.cpp` |
 
