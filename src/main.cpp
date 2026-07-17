@@ -92,6 +92,8 @@ static void pollAndCheck(uint8_t slaveId) {
         return;
     }
 
+    bool identityOk = true; // gagal identitas → jangan tandai present → verifikasi ulang tiap poll
+
     // Kontak pertama ATAU reconnect setelah DEVICE_LOST → verifikasi identitas
     if (!g_security.isCurrentlyPresent(slaveId)) {
         uint8_t uid32[32];
@@ -104,6 +106,7 @@ static void pollAndCheck(uint8_t slaveId) {
             if (g_bc.verifyDevice(slaveId, uid32)) {
                 Serial.printf("[SEC] identitas slave %u terverifikasi (UID cocok)\n", slaveId);
             } else {
+                identityOk = false; // identitas gagal → persisten, jangan dianggap hadir
                 SecurityCheck idCheck;
                 idCheck.passed             = false;
                 idCheck.anomalyRogueDevice = false;
@@ -124,7 +127,12 @@ static void pollAndCheck(uint8_t slaveId) {
         }
     }
 
-    g_security.markPresent(slaveId); // poll sukses — catat kehadiran slave ini
+    // Tandai hadir HANYA bila identitas sah. Bila gagal, _currentlyPresent tetap
+    // false sehingga IDENTITY diverifikasi ulang tiap poll (anomali berulang) dan
+    // transaksi tidak pernah dianggap sah.
+    if (identityOk) {
+        g_security.markPresent(slaveId);
+    }
 
     // Periksa keamanan
     bool safe = g_security.checkPollResult(result, check);

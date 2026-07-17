@@ -35,3 +35,6 @@ Thumbs.db
 # Node.js (tools/diagnostics)
 node_modules/
 package-lock.json
+
+# Tooling lokal (attacker, logger, diagnostics) — tidak ikut repo
+tools/
