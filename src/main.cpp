@@ -92,10 +92,14 @@ static void pollAndCheck(uint8_t slaveId) {
         return;
     }
 
-    bool identityOk = true; // gagal identitas → jangan tandai present → verifikasi ulang tiap poll
+    // 1. Gerbang keamanan dijalankan lebih dulu (ID, timing, value range, whitelist)
+    bool safe = g_security.checkPollResult(result, check);
 
-    // Kontak pertama ATAU reconnect setelah DEVICE_LOST → verifikasi identitas
-    if (!g_security.isCurrentlyPresent(slaveId)) {
+    // 2. Verifikasi identitas HANYA untuk perangkat yang lolos whitelist.
+    //    Perangkat rogue cukup diklasifikasikan sebagai ROGUE_ID; UID-nya tidak relevan
+    //    karena kontrak menolak berdasarkan whitelist, bukan berdasarkan kecocokan UID.
+    bool identityOk = true;
+    if (!check.anomalyRogueDevice && !g_security.isCurrentlyPresent(slaveId)) {
         uint8_t uid32[32];
         if (g_modbus.readUID(slaveId, uid32)) {
             // Cetak UID 24-hex (12 byte bermakna, byte 20–31)
@@ -127,16 +131,12 @@ static void pollAndCheck(uint8_t slaveId) {
         }
     }
 
-    // Tandai hadir HANYA bila identitas sah. Bila gagal, _currentlyPresent tetap
-    // false sehingga IDENTITY diverifikasi ulang tiap poll (anomali berulang) dan
-    // transaksi tidak pernah dianggap sah.
-    if (identityOk) {
+    // 3. Tandai hadir hanya bila bukan rogue DAN identitas sah
+    if (!check.anomalyRogueDevice && identityOk) {
         g_security.markPresent(slaveId);
     }
 
-    // Periksa keamanan
-    bool safe = g_security.checkPollResult(result, check);
-
+    // 4. Pencatatan
     if (safe && identityOk) {
         // Transaksi valid → masukkan ke buffer log
         g_logger.addTransaction(result);

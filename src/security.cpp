@@ -24,7 +24,8 @@ void Security::begin(BlockchainClient* bc) {
     memset(_wasPresent,       false, sizeof(_wasPresent));
     memset(_currentlyPresent, false, sizeof(_currentlyPresent));
     for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
-        _lastForwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
+        _lastForwardPulse[i]  = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
+        _lastBackwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
     }
     Serial.println("[SEC] Security module siap");
 }
@@ -188,6 +189,39 @@ bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
                      anomalyName(c.primaryAnomaly), c.detail);
             return false;
         }
+    }
+
+    // Gerbang backward pulse: totalizer aliran balik tidak boleh mundur dan
+    // kenaikannya tidak boleh mencapai ambang aliran balik wajar.
+    if (r.reg_count >= 4) {
+        uint32_t bwd = ModbusHandler::registersToUint32(r.values[2], r.values[3]);
+
+        if (_lastBackwardPulse[id] != UINT32_MAX) {
+            if (bwd < _lastBackwardPulse[id]) {
+                c.anomalyValueRange = true;
+                c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
+                snprintf(c.detail, sizeof(c.detail),
+                         "Backward pulse turun: %lu -> %lu",
+                         (unsigned long)_lastBackwardPulse[id], (unsigned long)bwd);
+                Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
+                return false;
+            }
+            if ((bwd - _lastBackwardPulse[id]) >= MAX_BACKWARD_DELTA) {
+                c.anomalyValueRange = true;
+                c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
+                snprintf(c.detail, sizeof(c.detail),
+                         "Aliran balik %lu pulsa (ambang %lu)",
+                         (unsigned long)(bwd - _lastBackwardPulse[id]),
+                         (unsigned long)MAX_BACKWARD_DELTA);
+                Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
+                     (unsigned long)millis(), r.slave_id,
+                     anomalyName(c.primaryAnomaly), c.detail);
+                return false;
+            }
+        }
+        _lastBackwardPulse[id] = bwd;
     }
 
     _lastForwardPulse[id] = fwd;

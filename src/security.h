@@ -61,6 +61,10 @@ private:
     // UINT32_MAX = sentinel "belum ada data pembacaan sebelumnya"
     uint32_t _lastForwardPulse[SLAVE_COUNT + 1];
 
+    // Backward pulse terakhir per slave (indeks = slave_id 1–5)
+    // UINT32_MAX = sentinel "belum ada data pembacaan sebelumnya"
+    uint32_t _lastBackwardPulse[SLAVE_COUNT + 1];
+
     // Catat slave yang pernah berhasil merespons minimal sekali
     bool _wasPresent[SLAVE_COUNT + 1];       // indeks = slave_id (1–5)
 

@@ -16,13 +16,17 @@
 // Blockchain (Ganache via JSON-RPC HTTP)
 // ------------------------------------------------------------
 // Ganti IP dengan hasil `ipconfig` (IPv4) pada PC yang menjalankan Ganache
-#define BLOCKCHAIN_RPC_URL   "http://192.168.0.104:7545"        // ← ganti IP
+#define BLOCKCHAIN_RPC_URL   "http://192.168.0.102:7545"        // ← ganti IP
+
 // Smart contract address — didapat dari Remix setelah deploy (EVM: Paris)
-#define CONTRACT_ADDRESS     "0x3eC770D542c28cf75daf4882ea1D97ddb6937660"        // ← ganti setelah deploy
+#define CONTRACT_ADDRESS     "0x3b8dDc5bFEb0EDD34780E3A1cd6E00297062d1a9"        // ← ganti setelah deploy (remix)
+
 // Private key akun Ganache baris pertama — lihat ikon kunci di tab Accounts (tanpa "0x")
-#define SENDER_PRIVATE_KEY   "dc64a126362f70319bbe247c8be5c72a9db205035e01a99f9ead2fa971d59b11"       // ← ganti dari Ganache
+#define SENDER_PRIVATE_KEY   "aa3745a798111f45e5bf4897c4ace54a2eed7696b0214ff0e8db37c78d98e029"       // ← ganti dari Ganache (private key)
+
 // Address Ethereum akun baris pertama Ganache
-#define SENDER_ADDRESS       "0xD501FBA17fc20de2aDb9491252E5c64E499B596D"         // ← ganti dari Ganache
+#define SENDER_ADDRESS       "0xb26c9375381075f8B6bb5e9d20D718E592535087"         // ← ganti dari Ganache
+
 // Gas limit untuk transaksi blockchain
 #define TX_GAS_LIMIT         "0x30000"
 
@@ -52,6 +56,7 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
 // Kenaikan forward pulse maks wajar dalam satu interval polling (kalibrasi).
 // Default 1000 pulse = 10.000 liter/polling. Sesuaikan dengan debit maks pipa.
 #define MAX_PULSE_DELTA      1000UL
+#define MAX_BACKWARD_DELTA   5UL   // Aliran balik wajar maksimum per siklus polling
 
 // Jendela waktu respons yang masih diterima (ms)
 #define RESPONSE_WINDOW_MS   600
