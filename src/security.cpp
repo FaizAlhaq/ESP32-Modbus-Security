@@ -25,7 +25,7 @@ void Security::begin(BlockchainClient* bc) {
     memset(_currentlyPresent, false, sizeof(_currentlyPresent));
     for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
         _lastForwardPulse[i]  = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
-        _lastBackwardPulse[i] = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
+        _baseBackwardPulse[i] = UINT32_MAX; // UINT32_MAX = baseline belum direkam
     }
     Serial.println("[SEC] Security module siap");
 }
@@ -191,29 +191,34 @@ bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
         }
     }
 
-    // Gerbang backward pulse: totalizer aliran balik tidak boleh mundur dan
-    // kenaikannya tidak boleh mencapai ambang aliran balik wajar.
+    // Gerbang backward pulse.
+    // Baseline direkam sekali pada kontak pertama lalu DIKUNCI (tidak digeser tiap poll),
+    // sehingga aliran balik yang terakumulasi pelan tetap terdeteksi.
     if (r.reg_count >= 4) {
         uint32_t bwd = ModbusHandler::registersToUint32(r.values[2], r.values[3]);
 
-        if (_lastBackwardPulse[id] != UINT32_MAX) {
-            if (bwd < _lastBackwardPulse[id]) {
+        if (_baseBackwardPulse[id] == UINT32_MAX) {
+            _baseBackwardPulse[id] = bwd; // kunci baseline sesi
+        } else {
+            // Anomali: totalizer backward mundur (mustahil pada perangkat sah)
+            if (bwd < _baseBackwardPulse[id]) {
                 c.anomalyValueRange = true;
                 c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
                 snprintf(c.detail, sizeof(c.detail),
                          "Backward pulse turun: %lu -> %lu",
-                         (unsigned long)_lastBackwardPulse[id], (unsigned long)bwd);
+                         (unsigned long)_baseBackwardPulse[id], (unsigned long)bwd);
                 Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
                      (unsigned long)millis(), r.slave_id,
                      anomalyName(c.primaryAnomaly), c.detail);
                 return false;
             }
-            if ((bwd - _lastBackwardPulse[id]) >= MAX_BACKWARD_DELTA) {
+            // Anomali: aliran balik mencapai ambang sejak baseline sesi
+            if ((bwd - _baseBackwardPulse[id]) >= MAX_BACKWARD_DELTA) {
                 c.anomalyValueRange = true;
                 c.primaryAnomaly    = ANOMALY_VALUE_RANGE;
                 snprintf(c.detail, sizeof(c.detail),
-                         "Aliran balik %lu pulsa (ambang %lu)",
-                         (unsigned long)(bwd - _lastBackwardPulse[id]),
+                         "Aliran balik %lu pulsa sejak baseline (ambang %lu)",
+                         (unsigned long)(bwd - _baseBackwardPulse[id]),
                          (unsigned long)MAX_BACKWARD_DELTA);
                 Serial.printf("[SEC] >>> ANOMALI @t=%lums | slave=%u | jenis=%s | detail=%s\n",
                      (unsigned long)millis(), r.slave_id,
@@ -221,7 +226,6 @@ bool Security::checkValueRange(const PollResult& r, SecurityCheck& c) {
                 return false;
             }
         }
-        _lastBackwardPulse[id] = bwd;
     }
 
     _lastForwardPulse[id] = fwd;

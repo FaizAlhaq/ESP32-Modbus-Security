@@ -56,7 +56,7 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
 // Kenaikan forward pulse maks wajar dalam satu interval polling (kalibrasi).
 // Default 1000 pulse = 10.000 liter/polling. Sesuaikan dengan debit maks pipa.
 #define MAX_PULSE_DELTA      1000UL
-#define MAX_BACKWARD_DELTA   5UL   // Aliran balik wajar maksimum per siklus polling
+#define MAX_BACKWARD_DELTA   5UL   // Aliran balik kumulatif maksimum sejak baseline sesi
 
 // Jendela waktu respons yang masih diterima (ms)
 #define RESPONSE_WINDOW_MS   600
