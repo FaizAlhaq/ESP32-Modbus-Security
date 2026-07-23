@@ -33,6 +33,13 @@ public:
     // Periksa satu PollResult; isi SecurityCheck dan return true jika aman
     bool checkPollResult(const PollResult& result, SecurityCheck& check);
 
+    // Lapisan PERANGKAT: ID lokal, jendela respons, whitelist on-chain.
+    // false = perangkat tidak tepercaya, payload TIDAK boleh dievaluasi.
+    bool checkDeviceLayer(const PollResult& result, SecurityCheck& check);
+
+    // Lapisan DATA: pemeriksaan nilai register. Hanya untuk perangkat tepercaya.
+    bool checkDataLayer(const PollResult& result, SecurityCheck& check);
+
     // Tandai bahwa request untuk slaveId telah dikirim (panggil SEBELUM poll)
     void recordRequest(uint8_t slaveId);
 

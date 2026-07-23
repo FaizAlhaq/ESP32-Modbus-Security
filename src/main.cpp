@@ -92,14 +92,15 @@ static void pollAndCheck(uint8_t slaveId) {
         return;
     }
 
-    // 1. Gerbang keamanan dijalankan lebih dulu (ID, timing, value range, whitelist)
-    bool safe = g_security.checkPollResult(result, check);
+    // 1. LAPISAN PERANGKAT — ID lokal, jendela respons, whitelist on-chain.
+    if (!g_security.checkDeviceLayer(result, check)) {
+        g_logger.reportAnomaly(result, check);
+        return; // perangkat tidak tepercaya: payload tidak dievaluasi.
+                // Polling siklus berikutnya tetap berjalan.
+    }
 
-    // 2. Verifikasi identitas HANYA untuk perangkat yang lolos whitelist.
-    //    Perangkat rogue cukup diklasifikasikan sebagai ROGUE_ID; UID-nya tidak relevan
-    //    karena kontrak menolak berdasarkan whitelist, bukan berdasarkan kecocokan UID.
-    bool identityOk = true;
-    if (!check.anomalyRogueDevice && !g_security.isCurrentlyPresent(slaveId)) {
+    // 2. LAPISAN IDENTITAS — UID diverifikasi hanya untuk perangkat yang lolos whitelist.
+    if (!g_security.isCurrentlyPresent(slaveId)) {
         uint8_t uid32[32];
         if (g_modbus.readUID(slaveId, uid32)) {
             // Cetak UID 24-hex (12 byte bermakna, byte 20–31)
@@ -110,7 +111,6 @@ static void pollAndCheck(uint8_t slaveId) {
             if (g_bc.verifyDevice(slaveId, uid32)) {
                 Serial.printf("[SEC] identitas slave %u terverifikasi (UID cocok)\n", slaveId);
             } else {
-                identityOk = false; // identitas gagal → persisten, jangan dianggap hadir
                 SecurityCheck idCheck;
                 idCheck.passed             = false;
                 idCheck.anomalyRogueDevice = false;
@@ -124,6 +124,7 @@ static void pollAndCheck(uint8_t slaveId) {
                               " | detail=%s\n",
                               (unsigned long)millis(), slaveId, idCheck.detail);
                 g_logger.reportAnomaly(result, idCheck);
+                return; // impostor: payload tidak dievaluasi, tidak ditandai hadir
             }
         } else {
             Serial.printf("[SEC] Slave %u: gagal baca UID, verifikasi identitas dilewati\n",
@@ -131,21 +132,17 @@ static void pollAndCheck(uint8_t slaveId) {
         }
     }
 
-    // 3. Tandai hadir hanya bila bukan rogue DAN identitas sah
-    if (!check.anomalyRogueDevice && identityOk) {
-        g_security.markPresent(slaveId);
+    // 3. Perangkat tepercaya → tandai hadir
+    g_security.markPresent(slaveId);
+
+    // 4. LAPISAN DATA — evaluasi payload hanya untuk perangkat tepercaya
+    if (!g_security.checkDataLayer(result, check)) {
+        g_logger.reportAnomaly(result, check);
+        return;
     }
 
-    // 4. Pencatatan
-    if (safe && identityOk) {
-        // Transaksi valid → masukkan ke buffer log
-        g_logger.addTransaction(result);
-    } else if (!safe) {
-        // Anomali terdeteksi → kirim alert langsung ke blockchain
-        g_logger.reportAnomaly(result, check);
-    }
-    // safe && !identityOk → IDENTITY sudah dilaporkan di atas; transaksi TIDAK
-    // dicatat dan tidak dilaporkan ulang agar tidak dobel.
+    // 5. Transaksi sah
+    g_logger.addTransaction(result);
 }
 
 // ------------------------------------------------------------

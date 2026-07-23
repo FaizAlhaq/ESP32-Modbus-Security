@@ -68,7 +68,9 @@ bool Security::isCurrentlyPresent(uint8_t slaveId) {
 }
 
 // ------------------------------------------------------------
-bool Security::checkPollResult(const PollResult& result, SecurityCheck& check) {
+// Lapisan PERANGKAT: ID lokal, jendela respons, whitelist on-chain.
+// false = perangkat tidak tepercaya; payload TIDAK boleh dievaluasi siklus ini.
+bool Security::checkDeviceLayer(const PollResult& result, SecurityCheck& check) {
     check.passed             = true;
     check.anomalyRogueDevice = false;
     check.anomalyNoRequest   = false;
@@ -84,13 +86,24 @@ bool Security::checkPollResult(const PollResult& result, SecurityCheck& check) {
         return false;
     }
 
-    // Empat lapisan; hentikan di anomali pertama
-    if (!checkSlaveId(result, check))    { check.passed = false; return false; }
-    if (!checkTiming(result, check))     { check.passed = false; return false; }
-    if (!checkValueRange(result, check)) { check.passed = false; return false; }
-    if (!checkWhitelist(result, check))  { check.passed = false; return false; }
+    // Gerbang perangkat; hentikan di anomali pertama
+    if (!checkSlaveId(result, check))   { check.passed = false; return false; }
+    if (!checkTiming(result, check))    { check.passed = false; return false; }
+    if (!checkWhitelist(result, check)) { check.passed = false; return false; }
 
     return true;
+}
+
+// Lapisan DATA: pemeriksaan nilai register. Hanya untuk perangkat tepercaya.
+bool Security::checkDataLayer(const PollResult& result, SecurityCheck& check) {
+    if (!checkValueRange(result, check)) { check.passed = false; return false; }
+    return true;
+}
+
+// Pembungkus lama: perangkat lalu data (agar pemanggil lama tetap kompilasi)
+bool Security::checkPollResult(const PollResult& result, SecurityCheck& check) {
+    if (!checkDeviceLayer(result, check)) return false;
+    return checkDataLayer(result, check);
 }
 
 // ------------------------------------------------------------
