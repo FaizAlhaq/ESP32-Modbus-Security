@@ -58,6 +58,11 @@ public:
     // True jika slave hadir dalam siklus saat ini (false setelah markLost)
     bool isCurrentlyPresent(uint8_t slaveId);
 
+    // True bila identitas slave perlu diverifikasi ulang (interval terlampaui)
+    bool identityPerluCek(uint8_t slaveId);
+    // Catat bahwa identitas slave baru saja terverifikasi
+    void identitySudahCek(uint8_t slaveId);
+
 private:
     BlockchainClient* _bc;
 
@@ -77,6 +82,8 @@ private:
 
     // Status kontak aktif: false setelah DEVICE_LOST, true saat merespons
     bool _currentlyPresent[SLAVE_COUNT + 1]; // indeks = slave_id (1–5)
+
+    uint32_t _lastIdentityMs[SLAVE_COUNT + 1]; // waktu verifikasi identitas terakhir
 
     bool checkSlaveId(const PollResult& r, SecurityCheck& c);
     bool checkTiming(const PollResult& r, SecurityCheck& c);

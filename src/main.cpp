@@ -100,7 +100,10 @@ static void pollAndCheck(uint8_t slaveId) {
     }
 
     // 2. LAPISAN IDENTITAS — UID diverifikasi hanya untuk perangkat yang lolos whitelist.
-    if (!g_security.isCurrentlyPresent(slaveId)) {
+    // Identitas diverifikasi saat kontak pertama, saat reconnect, DAN secara berkala
+    // agar penggantian UID di tengah sesi tetap terdeteksi.
+    if (!g_security.isCurrentlyPresent(slaveId) ||
+        g_security.identityPerluCek(slaveId)) {
         uint8_t uid32[32];
         if (g_modbus.readUID(slaveId, uid32)) {
             // Cetak UID 24-hex (12 byte bermakna, byte 20–31)
@@ -110,6 +113,7 @@ static void pollAndCheck(uint8_t slaveId) {
 
             if (g_bc.verifyDevice(slaveId, uid32)) {
                 Serial.printf("[SEC] identitas slave %u terverifikasi (UID cocok)\n", slaveId);
+                g_security.identitySudahCek(slaveId);
             } else {
                 SecurityCheck idCheck;
                 idCheck.passed             = false;

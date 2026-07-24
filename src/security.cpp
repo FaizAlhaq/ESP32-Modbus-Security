@@ -23,6 +23,7 @@ void Security::begin(BlockchainClient* bc) {
     memset(_requestSent,      false, sizeof(_requestSent));
     memset(_wasPresent,       false, sizeof(_wasPresent));
     memset(_currentlyPresent, false, sizeof(_currentlyPresent));
+    memset(_lastIdentityMs,   0,     sizeof(_lastIdentityMs));
     for (uint8_t i = 0; i <= SLAVE_COUNT; i++) {
         _lastForwardPulse[i]  = UINT32_MAX; // UINT32_MAX = belum ada pembacaan
         _baseBackwardPulse[i] = UINT32_MAX; // UINT32_MAX = baseline belum direkam
@@ -59,6 +60,20 @@ bool Security::wasPresent(uint8_t slaveId) {
 // ------------------------------------------------------------
 void Security::markLost(uint8_t slaveId) {
     if (slaveId >= 1 && slaveId <= SLAVE_COUNT) _currentlyPresent[slaveId] = false;
+}
+
+// ------------------------------------------------------------
+bool Security::identityPerluCek(uint8_t slaveId) {
+    if (slaveId > SLAVE_COUNT) return false;
+    // Nilai 0 = belum pernah diverifikasi pada sesi ini
+    if (_lastIdentityMs[slaveId] == 0) return true;
+    return (millis() - _lastIdentityMs[slaveId]) >= IDENTITY_RECHECK_MS;
+}
+
+// ------------------------------------------------------------
+void Security::identitySudahCek(uint8_t slaveId) {
+    if (slaveId > SLAVE_COUNT) return;
+    _lastIdentityMs[slaveId] = millis();
 }
 
 // ------------------------------------------------------------

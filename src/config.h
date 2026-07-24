@@ -19,13 +19,13 @@
 #define BLOCKCHAIN_RPC_URL   "http://192.168.0.102:7545"        // ← ganti IP
 
 // Smart contract address — didapat dari Remix setelah deploy (EVM: Paris)
-#define CONTRACT_ADDRESS     "0x3b8dDc5bFEb0EDD34780E3A1cd6E00297062d1a9"        // ← ganti setelah deploy (remix)
+#define CONTRACT_ADDRESS     "0xA16c51D62C84f055b048524278cF3b2746Fa2cfA"        // ← ganti setelah deploy (remix)
 
 // Private key akun Ganache baris pertama — lihat ikon kunci di tab Accounts (tanpa "0x")
-#define SENDER_PRIVATE_KEY   "aa3745a798111f45e5bf4897c4ace54a2eed7696b0214ff0e8db37c78d98e029"       // ← ganti dari Ganache (private key)
+#define SENDER_PRIVATE_KEY   "00677eda7aff567196d7ac25b95574677abcc4f806857288410bb5627d33a325"       // ← ganti dari Ganache (private key)
 
 // Address Ethereum akun baris pertama Ganache
-#define SENDER_ADDRESS       "0xb26c9375381075f8B6bb5e9d20D718E592535087"         // ← ganti dari Ganache
+#define SENDER_ADDRESS       "0xe13378cDc652b5C7dF2576C76d825164C142828C"         // ← ganti dari Ganache
 
 // Gas limit untuk transaksi blockchain
 #define TX_GAS_LIMIT         "0x30000"
@@ -72,3 +72,6 @@ static const uint8_t SLAVE_IDS[SLAVE_COUNT] = {1, 2};
 // Interval polling semua slave
 // ------------------------------------------------------------
 #define POLL_INTERVAL_MS     2000        // Jeda setelah satu putaran penuh
+
+// Re-atestasi identitas: interval verifikasi ulang UID slave yang sudah hadir
+#define IDENTITY_RECHECK_MS  30000UL   // Re-atestasi identitas tiap 30 detik
