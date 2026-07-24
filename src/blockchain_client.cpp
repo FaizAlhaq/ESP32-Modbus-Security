@@ -17,8 +17,7 @@
 #include <ArduinoJson.h>
 #include <string.h>
 
-// Keccak-4 byte selector fungsi contract (hitung dari ABI)
-// Ganti dengan selector dari contract yang Anda deploy
+// Keccak-4 byte selector fungsi contract — terverifikasi dengan keccak256
 #define SEL_VERIFY_DEVICE     "0xeca8e63d"  // verifyDevice(uint8)
 #define SEL_VERIFY_DEVICE_UID "0xd14cf946"  // verifyDevice(uint8,uint256)
 #define SEL_LOG_TRANSACTION   "0xd8628357"  // logTransaction(string,string)
@@ -196,8 +195,9 @@ void BlockchainClient::logTransaction(const char* txData, const char* txHash) {
     // Gunakan eth_sendTransaction (Ganache tidak perlu signed tx)
     buildRpcPayload("eth_sendTransaction", params, payload, sizeof(payload));
 
-    int code = postJson(payload);
-    Serial.printf("[BC] logTransaction → HTTP %d | hash: %.16s...\n", code, txHash);
+    char outTxHash[68] = ""; // "0x" + 64 hex + null
+    int  code = postJson(payload, outTxHash, sizeof(outTxHash));
+    Serial.printf("[BC] logTransaction | HTTP %d | hash=%s\n", code, outTxHash);
 }
 
 // ------------------------------------------------------------
@@ -239,14 +239,39 @@ int BlockchainClient::postJson(const char* payload, char* outTxHash, size_t hash
     HTTPClient http;
     http.begin(BLOCKCHAIN_RPC_URL);
     http.addHeader("Content-Type", "application/json");
-    http.setTimeout(5000); // 5 detik timeout agar tidak blokir lama
+    http.setConnectTimeout(5000);
+    http.setTimeout(5000);
 
     int code = http.POST(payload);
     updateReachability(code > 0);
 
+    // (A) Gagal di level koneksi TCP — belum sampai ke JSON-RPC
+    if (code <= 0) {
+        Serial.printf("[BC] KONEKSI GAGAL ke %s | code=%d (%s)\n",
+                      BLOCKCHAIN_RPC_URL, code, http.errorToString(code).c_str());
+        if (outTxHash != nullptr && hashLen > 0) {
+            snprintf(outTxHash, hashLen, "conn-%d", code);
+        }
+        http.end();
+        return code;
+    }
+
+    // (B) Body SELALU dibaca dan dicetak, apa pun status HTTP-nya
+    String body = http.getString();
+    Serial.printf("[BC] RPC raw response: %s\n", body.c_str());
+
+    // (C) HTTP 200 tidak menjamin sukses — periksa field "error" di body JSON
+    bool rpcError = (body.indexOf("\"error\"") >= 0);
+    if (rpcError) {
+        Serial.printf("[BC] RPC/EVM MENOLAK transaksi (HTTP %d). "
+                      "Periksa alamat kontrak, nonce, gas, atau parameter fungsi.\n", code);
+    }
+
     if (outTxHash != nullptr && hashLen > 0) {
-        if (code == 200) {
-            String body = http.getString();
+        if (rpcError) {
+            strncpy(outTxHash, "rpc-error", hashLen - 1);
+            outTxHash[hashLen - 1] = '\0';
+        } else if (code == 200) {
             JsonDocument doc;
             if (deserializeJson(doc, body) == DeserializationError::Ok) {
                 const char* result = doc["result"];
@@ -254,10 +279,12 @@ int BlockchainClient::postJson(const char* payload, char* outTxHash, size_t hash
                     strncpy(outTxHash, result, hashLen - 1);
                     outTxHash[hashLen - 1] = '\0';
                 } else {
-                    strncpy(outTxHash, "no-result", hashLen);
+                    strncpy(outTxHash, "no-result", hashLen - 1);
+                    outTxHash[hashLen - 1] = '\0';
                 }
             } else {
-                strncpy(outTxHash, "parse-err", hashLen);
+                strncpy(outTxHash, "parse-err", hashLen - 1);
+                outTxHash[hashLen - 1] = '\0';
             }
         } else {
             snprintf(outTxHash, hashLen, "http-%d", code);
